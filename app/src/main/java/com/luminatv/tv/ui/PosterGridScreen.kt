@@ -77,7 +77,7 @@ fun <T : Item> PosterGridScreen(
         else -> "No hay $noun en esta categoría"
     }
 
-    AppBackground(art = art, dim = 0.5f) {
+    AppBackground(art = art, dim = 0.38f) {
         Row(Modifier.fillMaxSize()) {
             if (state.sidebarOpen) {
                 CategorySidebar(

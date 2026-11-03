@@ -47,7 +47,7 @@ fun ContinueScreen(vm: AppViewModel) {
         first.tryRequestFocus()
     }
 
-    AppBackground(dim = 0.45f) {
+    AppBackground(dim = 0.35f) {
         Column(Modifier.fillMaxSize()) {
             TopBar(title = "Continuar viendo", centerTitle = true, onBack = { vm.back() })
             if (entries.isEmpty()) {

@@ -79,7 +79,7 @@ fun EpgGridScreen(vm: AppViewModel, categoryId: String, title: String) {
     val slotWidth: Dp = DP_PER_MIN * SLOT_MIN.toFloat()
     val totalWidth: Dp = slotWidth * WINDOW_SLOTS.toFloat()
 
-    AppBackground(art = R.drawable.art_live, dim = 0.62f) {
+    AppBackground(art = R.drawable.art_live, dim = 0.50f) {
         Column(Modifier.fillMaxSize()) {
             TopBar(
                 title = title,

@@ -189,7 +189,7 @@ fun LiveScreen(vm: AppViewModel, state: BrowseState<LiveChannel>, title: String,
 
     val channels = state.items
 
-    AppBackground(art = R.drawable.art_live, dim = 0.58f) {
+    AppBackground(art = R.drawable.art_live, dim = 0.42f) {
         Column(Modifier.fillMaxSize()) {
             TopBar(
                 title = title,

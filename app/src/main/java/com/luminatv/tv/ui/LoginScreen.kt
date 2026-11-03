@@ -38,6 +38,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
@@ -69,7 +73,7 @@ fun LoginScreen(vm: AppViewModel) {
         unfocusedTextColor = TextPrimary
     )
 
-    AppBackground(dim = 0f) {
+    AppBackground(dim = 0.30f) {
         Row(
             modifier = Modifier.fillMaxSize(),
             verticalAlignment = Alignment.CenterVertically
@@ -85,30 +89,21 @@ fun LoginScreen(vm: AppViewModel) {
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     alignment = Alignment.TopCenter,
-                    modifier = Modifier.fillMaxSize()
-                )
-                // La imagen se funde con el fondo morado hacia el formulario.
-                Box(
-                    Modifier
+                    modifier = Modifier
                         .fillMaxSize()
-                        .background(
-                            Brush.horizontalGradient(
-                                0f to BackgroundColor.copy(alpha = 0.25f),
-                                0.12f to Color.Transparent,
-                                0.62f to Color.Transparent,
-                                1f to BackgroundColor
+                        // La foto se desvanece hacia la derecha y hacia abajo y se funde con el fondo, sin cortes.
+                        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                        .drawWithContent {
+                            drawContent()
+                            drawRect(
+                                Brush.horizontalGradient(0.55f to Color.Black, 1f to Color.Transparent),
+                                blendMode = BlendMode.DstIn
                             )
-                        )
-                )
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                0.72f to Color.Transparent,
-                                1f to BackgroundColor.copy(alpha = 0.9f)
+                            drawRect(
+                                Brush.verticalGradient(0.72f to Color.Black, 1f to Color.Transparent),
+                                blendMode = BlendMode.DstIn
                             )
-                        )
+                        }
                 )
             }
 
@@ -121,9 +116,13 @@ fun LoginScreen(vm: AppViewModel) {
             ) {
             Column(
                 modifier = Modifier
-                    .width(360.dp)
+                    .width(400.dp)
+                    // tarjeta "de vidrio" detrás del formulario: se ve el fondo pero el texto se lee bien
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(Color(0xC70C0410))
+                    .border(1.dp, GlassBorder, RoundedCornerShape(22.dp))
                     .verticalScroll(rememberScrollState())
-                    .padding(vertical = 18.dp),
+                    .padding(horizontal = 20.dp, vertical = 22.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 AppLogo(Modifier.width(250.dp))
