@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -50,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -196,10 +198,18 @@ fun HomeScreen(vm: AppViewModel) {
                     .fillMaxHeight()
                     .background(Color(0x14FFFFFF))
             )
-            Column(
-                modifier = Modifier
+            Box(
+                Modifier
                     .weight(1f)
                     .fillMaxHeight()
+            ) {
+            // Imagen de la película destacada a pantalla completa (como las apps de cine).
+            HomeBackdrop(
+                featuredInfo?.backdrop?.takeIf { it.isNotBlank() } ?: featured?.poster?.takeIf { it.isNotBlank() }
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
                     .verticalScroll(rememberScrollState())
             ) {
                 Hero(
@@ -241,6 +251,7 @@ fun HomeScreen(vm: AppViewModel) {
                     )
                 }
                 Spacer(Modifier.height(28.dp))
+            }
             }
         }
     }
@@ -354,6 +365,58 @@ private fun RailButton(item: RailItem) {
 
 // ------------------------------------------------------------------ destacado
 
+/**
+ * Fondo de la pantalla de inicio: la imagen de la película destacada ocupa toda la pantalla y se
+ * funde con el morado hacia la izquierda (donde va el texto) y hacia abajo (donde van las filas).
+ */
+@Composable
+private fun HomeBackdrop(art: String?) {
+    Box(Modifier.fillMaxSize()) {
+        if (art != null) {
+            AsyncImage(
+                model = art,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                alignment = Alignment.TopCenter,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Image(
+                bitmap = rememberArt(R.drawable.bg_home),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.horizontalGradient(
+                        0f to BackgroundColor.copy(alpha = 0.97f),
+                        0.30f to BackgroundColor.copy(alpha = 0.80f),
+                        0.62f to BackgroundColor.copy(alpha = 0.25f),
+                        1f to Color.Transparent
+                    )
+                )
+        )
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        0f to BackgroundColor.copy(alpha = 0.45f),
+                        0.16f to Color.Transparent,
+                        0.46f to Color.Transparent,
+                        0.70f to BackgroundColor.copy(alpha = 0.92f),
+                        1f to BackgroundColor
+                    )
+                )
+        )
+    }
+}
+
+
 @Composable
 private fun Hero(
     vm: AppViewModel,
@@ -370,61 +433,15 @@ private fun Hero(
     Box(
         Modifier
             .fillMaxWidth()
-            .height(330.dp)
+            .height(360.dp)
     ) {
-        // Imagen de fondo a la derecha, que se funde con el fondo hacia la izquierda y hacia abajo.
-        Box(
-            Modifier
-                .align(Alignment.TopEnd)
-                .fillMaxWidth(0.68f)
-                .fillMaxHeight()
-        ) {
-            val art = info?.backdrop?.takeIf { it.isNotBlank() } ?: featured?.poster?.takeIf { it.isNotBlank() }
-            if (art != null) {
-                AsyncImage(
-                    model = art,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
-                Image(
-                    bitmap = rememberArt(R.drawable.bg_home),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.horizontalGradient(
-                            0f to BackgroundColor,
-                            0.45f to BackgroundColor.copy(alpha = 0.55f),
-                            1f to Color.Transparent
-                        )
-                    )
-            )
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            0.55f to Color.Transparent,
-                            1f to BackgroundColor
-                        )
-                    )
-            )
-        }
-
         // Logo de Lumina TV arriba a la izquierda (sin destacado ya aparece grande abajo).
         if (featured != null) {
             AppLogo(
                 Modifier
                     .align(Alignment.TopStart)
-                    .padding(start = 36.dp, top = 18.dp)
-                    .width(150.dp)
+                    .padding(start = 40.dp, top = 20.dp)
+                    .width(132.dp)
             )
         }
 
@@ -468,9 +485,10 @@ private fun Hero(
                 Text(
                     text = featured.name,
                     color = TextPrimary,
-                    fontSize = 38.sp,
-                    lineHeight = 40.sp,
-                    fontWeight = FontWeight.Black,
+                    fontSize = 40.sp,
+                    lineHeight = 42.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = (-0.5).sp,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -479,8 +497,39 @@ private fun Hero(
                     info?.genre?.takeIf { it.isNotBlank() },
                     info?.duration?.takeIf { it.isNotBlank() }
                 ).joinToString("  •  ")
-                if (meta.isNotEmpty()) {
-                    Text(meta, color = TextSecondary, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                // Datos de la película en una línea: calificación, año, género, duración y "HD".
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (featured.rating10 >= 0.5f) {
+                        Icon(Icons.Filled.Star, contentDescription = null, tint = StarColor, modifier = Modifier.size(13.dp))
+                        Spacer(Modifier.width(3.dp))
+                        Text(
+                            String.format(java.util.Locale.US, "%.1f", featured.rating10),
+                            color = TextPrimary,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.width(10.dp))
+                    }
+                    if (meta.isNotEmpty()) {
+                        Text(
+                            meta,
+                            color = TextPrimary.copy(alpha = 0.82f),
+                            fontSize = 12.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        Spacer(Modifier.width(10.dp))
+                    }
+                    Text(
+                        text = "HD",
+                        color = TextPrimary,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .border(1.dp, TextPrimary.copy(alpha = 0.55f), RoundedCornerShape(3.dp))
+                            .padding(horizontal = 4.dp, vertical = 1.dp)
+                    )
                 }
                 val plot = info?.plot
                 if (!plot.isNullOrBlank()) {
@@ -564,6 +613,7 @@ private fun HeroPrimaryButton(text: String, icon: ImageVector, onClick: () -> Un
         modifier = modifier
             .onFocusChanged { focused = it.isFocused }
             .scale(scale)
+            .shadow(if (focused) 16.dp else 0.dp, shape, ambientColor = AccentColor, spotColor = AccentColor)
             .clip(shape)
             .background(AccentBrush, shape)
             .border(if (focused) 3.dp else 0.dp, if (focused) Color.White else Color.Transparent, shape)

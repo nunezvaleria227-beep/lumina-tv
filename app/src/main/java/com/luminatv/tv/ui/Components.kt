@@ -49,6 +49,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -110,6 +111,8 @@ fun FocusCard(
         modifier = modifier
             .onFocusChanged { focused = it.isFocused }
             .scale(scale)
+            // brillo rosa alrededor de lo que está enfocado
+            .shadow(if (focused) 14.dp else 0.dp, shape, ambientColor = AccentColor, spotColor = AccentColor)
             .clip(shape)
             .background(if (focused) focusedBackground else background, shape)
             .border(borderWidth, borderColor, shape)
@@ -203,6 +206,7 @@ fun TvButton(
         modifier = modifier
             .onFocusChanged { focused = it.isFocused }
             .scale(scale)
+            .shadow(if (focused) 12.dp else 0.dp, shape, ambientColor = AccentColor, spotColor = AccentColor)
             .clip(shape)
             .then(fill)
             .border(if (focused) 2.dp else 1.dp, borderColor, shape)
@@ -420,12 +424,14 @@ fun OptionsDialog(
     Dialog(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
-                .clip(RoundedCornerShape(16.dp))
-                .background(Color(0xFF0C0410))
-                .padding(20.dp),
+                .width(420.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(Brush.verticalGradient(listOf(Color(0xFF1C0B22), Color(0xFF0E0513))))
+                .border(1.dp, GlassBorder, RoundedCornerShape(20.dp))
+                .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text(title, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            Text(title, color = TextPrimary, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp)
             if (message != null) {
                 Text(message, color = TextSecondary)
             }

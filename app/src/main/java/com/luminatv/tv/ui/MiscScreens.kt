@@ -35,6 +35,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.unit.Dp
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.luminatv.tv.RecordingManager
@@ -52,6 +61,7 @@ import java.io.File
 private fun SimplePage(
     vm: AppViewModel,
     title: String,
+    maxWidth: Dp = 600.dp,
     content: @Composable ColumnScope.() -> Unit
 ) {
     AppBackground {
@@ -65,7 +75,7 @@ private fun SimplePage(
             ) {
                 Column(
                     modifier = Modifier
-                        .widthIn(max = 600.dp)
+                        .widthIn(max = maxWidth)
                         .fillMaxWidth()
                         .verticalScroll(rememberScrollState())
                         .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -74,6 +84,68 @@ private fun SimplePage(
                 )
             }
         }
+    }
+}
+
+/** Título pequeño de una sección de Ajustes. */
+@Composable
+private fun SettingsSection(title: String) {
+    Text(
+        text = title.uppercase(),
+        color = AccentLight,
+        fontSize = 11.sp,
+        fontWeight = FontWeight.Bold,
+        letterSpacing = 1.2.sp,
+        modifier = Modifier.padding(start = 6.dp, top = 12.dp, bottom = 2.dp)
+    )
+}
+
+/**
+ * Fila de ajuste: nombre y explicación a la izquierda, valor actual y flecha a la derecha.
+ * Al enfocarla se llena con el degradado rosa.
+ */
+@Composable
+private fun SettingRow(
+    title: String,
+    subtitle: String?,
+    value: String?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var focused by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(if (focused) 1.015f else 1f, label = "settingScale")
+    val shape = RoundedCornerShape(12.dp)
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .onFocusChanged { focused = it.isFocused }
+            .scale(scale)
+            .clip(shape)
+            .then(if (focused) Modifier.background(AccentBrush, shape) else Modifier.background(PanelColor.copy(alpha = 0.78f), shape))
+            .border(1.dp, if (focused) Color.White.copy(alpha = 0.9f) else GlassBorder, shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 18.dp, vertical = 13.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, color = if (focused) Color.White else TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            if (!subtitle.isNullOrBlank()) {
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    subtitle,
+                    color = if (focused) Color.White.copy(alpha = 0.85f) else TextTertiary,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    maxLines = 2
+                )
+            }
+        }
+        if (!value.isNullOrBlank()) {
+            Spacer(Modifier.width(16.dp))
+            Text(value, color = if (focused) Color.White else AccentLight, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        }
+        Spacer(Modifier.width(8.dp))
+        GlyphIcon(Glyph.CHEVRON, Modifier.size(16.dp), if (focused) Color.White else TextTertiary)
     }
 }
 
@@ -200,58 +272,25 @@ fun SettingsScreen(vm: AppViewModel) {
     }
     val formatName = if (vm.liveFormat == "m3u8") "HLS (m3u8)" else "MPEG-TS"
 
-    SimplePage(vm, "Ajustes") {
-        TvButton(
-            text = "Formato de TV en vivo: $formatName (cambiar)",
-            onClick = { vm.toggleLiveFormat() },
-            modifier = Modifier
-                .fillMaxWidth()
-                .focusRequester(first)
-        )
-        Text(
-            "Si un canal se corta o no abre, prueba cambiando el formato.",
-            color = TextSecondary,
-            fontSize = 12.sp
-        )
-        Spacer(Modifier.height(4.dp))
-        TvButton(
-            text = "Actualizar todas las listas ahora",
-            onClick = { vm.refreshAll() },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Text(
-            "Vuelve a descargar canales, películas y series. Se actualizan solas cada 12 horas.",
-            color = TextSecondary,
-            fontSize = 12.sp
-        )
-        Spacer(Modifier.height(4.dp))
-        TvButton(
-            text = "Buscar actualización de la app",
-            onClick = {
-                val state = vm.update
-                if (state is UpdateState.Available) {
-                    vm.updateDismissed = false
-                } else {
-                    vm.checkForUpdate(manual = true)
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Text(
-            "Versión instalada: ${UpdateManager.currentName(LocalContext.current)}. Cuando hay una nueva, la app te avisa sola al abrirla.",
-            color = TextSecondary,
-            fontSize = 12.sp
-        )
-        Spacer(Modifier.height(4.dp))
-        ParentalSettings(vm, onFlow = { pinFlow = it })
-        Spacer(Modifier.height(4.dp))
+    SimplePage(vm, "Ajustes", maxWidth = 720.dp) {
         val subLangName = when (subLang) {
             "es" -> "Español"
             "en" -> "Inglés"
             else -> "Apagados"
         }
-        TvButton(
-            text = "Subtítulos al empezar: $subLangName (cambiar)",
+
+        SettingsSection("Reproducción")
+        SettingRow(
+            title = "Formato de TV en vivo",
+            subtitle = "Si un canal se corta o no abre, prueba cambiando el formato.",
+            value = formatName,
+            onClick = { vm.toggleLiveFormat() },
+            modifier = Modifier.focusRequester(first)
+        )
+        SettingRow(
+            title = "Subtítulos al empezar",
+            subtitle = "Se activan solos en películas y series. También se cambian dentro del video (botón CC o tecla Menú).",
+            value = subLangName,
             onClick = {
                 subLang = when (subLang) {
                     "off" -> "es"
@@ -259,35 +298,53 @@ fun SettingsScreen(vm: AppViewModel) {
                     else -> "off"
                 }
                 SubtitleSettings.setLanguage(context, subLang)
-            },
-            modifier = Modifier.fillMaxWidth()
+            }
         )
-        Text(
-            "Se activan solos en películas y series. También se cambian dentro del video (botón CC o tecla Menú).",
-            color = TextSecondary,
-            fontSize = 12.sp
+        SettingRow(
+            title = "Subtítulos en internet",
+            subtitle = "Si la película no trae subtítulos, la app los busca en OpenSubtitles y los guarda para la próxima vez.",
+            value = "Configurar",
+            onClick = { subAccount = true }
         )
-        TvButton(
-            text = "Subtítulos en internet (OpenSubtitles)",
-            onClick = { subAccount = true },
-            modifier = Modifier.fillMaxWidth()
+
+        SettingsSection("Contenido")
+        SettingRow(
+            title = "Actualizar listas",
+            subtitle = "Vuelve a descargar canales, películas y series. Se actualizan solas cada 12 horas.",
+            value = "Actualizar ahora",
+            onClick = { vm.refreshAll() }
         )
-        Text(
-            "Si la película no trae subtítulos, la app los busca en internet y los guarda para la próxima vez.",
-            color = TextSecondary,
-            fontSize = 12.sp
+        ParentalSettings(vm, onFlow = { pinFlow = it })
+
+        SettingsSection("Mis datos")
+        SettingRow(
+            title = "Borrar favoritos",
+            subtitle = "Quita todos los canales, películas y series de Favoritos.",
+            value = null,
+            onClick = { confirm = "favoritos" }
         )
-        Spacer(Modifier.height(4.dp))
-        TvButton(
-            text = "Borrar favoritos",
-            onClick = { confirm = "favoritos" },
-            modifier = Modifier.fillMaxWidth()
+        SettingRow(
+            title = "Borrar historial",
+            subtitle = "Borra lo que viste recientemente y \"Continuar viendo\".",
+            value = null,
+            onClick = { confirm = "historial" }
         )
-        TvButton(
-            text = "Borrar historial",
-            onClick = { confirm = "historial" },
-            modifier = Modifier.fillMaxWidth()
+
+        SettingsSection("Aplicación")
+        SettingRow(
+            title = "Buscar actualización",
+            subtitle = "Cuando hay una versión nueva, la app te avisa sola al abrirla.",
+            value = "Versión " + UpdateManager.currentName(LocalContext.current),
+            onClick = {
+                val state = vm.update
+                if (state is UpdateState.Available) {
+                    vm.updateDismissed = false
+                } else {
+                    vm.checkForUpdate(manual = true)
+                }
+            }
         )
+        Spacer(Modifier.height(16.dp))
     }
 
     if (subAccount) SubtitleAccountDialog(onDismiss = { subAccount = false })
@@ -332,41 +389,31 @@ sealed interface PinFlow {
 private fun ParentalSettings(vm: AppViewModel, onFlow: (PinFlow) -> Unit) {
     val parental = vm.parental
     if (!parental.hasPin) {
-        TvButton(
-            text = "Control parental: poner un PIN",
-            onClick = { onFlow(PinFlow.Create) },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Text(
-            "Esconde las categorías para adultos (XXX, +18, adultos…) en listas, buscador y guía. Para verlas hace falta el PIN.",
-            color = TextSecondary,
-            fontSize = 12.sp
+        SettingRow(
+            title = "Control parental",
+            subtitle = "Esconde las categorías para adultos (XXX, +18, adultos…) en listas, buscador y guía. Para verlas hace falta el PIN.",
+            value = "Poner PIN",
+            onClick = { onFlow(PinFlow.Create) }
         )
         return
     }
     if (parental.locked) {
-        TvButton(
-            text = "Control parental activado · Ver contenido para adultos (PIN)",
-            onClick = { onFlow(PinFlow.Unlock) },
-            modifier = Modifier.fillMaxWidth()
+        SettingRow(
+            title = "Control parental activado",
+            subtitle = "Ahora mismo el contenido para adultos está escondido.",
+            value = "Ver con PIN",
+            onClick = { onFlow(PinFlow.Unlock) }
         )
-        Text("Ahora mismo el contenido para adultos está escondido.", color = TextSecondary, fontSize = 12.sp)
     } else {
-        TvButton(
-            text = "Contenido para adultos visible · Bloquear ahora",
-            onClick = { vm.lockParental() },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Text(
-            "Se vuelve a esconder solo al cerrar sesión o al cerrar la app.",
-            color = TextSecondary,
-            fontSize = 12.sp
+        SettingRow(
+            title = "Contenido para adultos visible",
+            subtitle = "Se vuelve a esconder solo al cerrar sesión o al cerrar la app.",
+            value = "Bloquear ahora",
+            onClick = { vm.lockParental() }
         )
     }
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-        TvButton(text = "Cambiar PIN", onClick = { onFlow(PinFlow.VerifyChange) }, modifier = Modifier.weight(1f))
-        TvButton(text = "Quitar PIN", onClick = { onFlow(PinFlow.VerifyRemove) }, modifier = Modifier.weight(1f))
-    }
+    SettingRow(title = "Cambiar PIN", subtitle = null, value = null, onClick = { onFlow(PinFlow.VerifyChange) })
+    SettingRow(title = "Quitar PIN", subtitle = null, value = null, onClick = { onFlow(PinFlow.VerifyRemove) })
 }
 
 @Composable
