@@ -95,7 +95,7 @@ private fun AppRoot(vm: AppViewModel) {
     when (val top = vm.stack.last()) {
         Screen.Login -> LoginScreen(vm)
         Screen.Home -> HomeScreen(vm)
-        Screen.Live -> LiveScreen(vm, vm.live, title = "Live")
+        Screen.Live -> LiveScreen(vm, vm.live, title = "TV en vivo")
         Screen.Radio -> LiveScreen(vm, vm.radio, title = "Radio", radio = true)
         Screen.Movies -> PosterGridScreen(
             vm = vm,

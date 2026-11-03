@@ -181,7 +181,7 @@ fun IconAction(
 }
 
 /** Proporción del logo de Lumina TV (res/drawable-nodpi/logo_lumina.png). */
-const val LOGO_RATIO = 1600f / 462f
+const val LOGO_RATIO = 1600f / 363f
 
 @Composable
 fun AppLogo(modifier: Modifier = Modifier) {

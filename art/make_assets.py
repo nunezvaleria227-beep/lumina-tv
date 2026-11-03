@@ -153,7 +153,7 @@ comp.alpha_composite(tag, (round((SW - tag.width) / 2), round(tag_y)))
 comp.convert("RGB").save(f"{PREV}/LuminaTV_splash_4K.png", optimize=True)
 
 # ------------------------------------------------------------------ logo para la app
-logo_app = scaled(LOGO, 1600)
+logo_app = scaled(LOGO.crop((150, 190, 4210, 1110)), 1600)  # recorte justo: el logo se ve más grande
 logo_app.save(f"{RES}/logo_lumina.png", optimize=True)
 # marca del menu lateral: la estrella sola, recortada
 st = STAR.copy()
