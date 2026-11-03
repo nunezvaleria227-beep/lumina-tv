@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.MiTv" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/background</item>
+        <item name="android:statusBarColor">@color/background</item>
+        <item name="android:navigationBarColor">@color/background</item>
+    </style>
+
+    <!-- Solo para la pantalla principal: al abrir se ve de inmediato el fondo del logo de inicio. -->
+    <style name="Theme.MiTv.Launch">
+        <item name="android:windowBackground">@drawable/splash_window_bg</item>
+    </style>
+</resources>

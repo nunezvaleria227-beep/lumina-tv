@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fondo que Android muestra al instante al abrir Lumina TV (antes de que cargue la app):
+     el mismo fondo del logo de inicio, así no hay pantalla negra ni parpadeo. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/background" />
+    <item>
+        <bitmap
+            android:gravity="fill"
+            android:src="@drawable/splash_window" />
+    </item>
+</layer-list>
