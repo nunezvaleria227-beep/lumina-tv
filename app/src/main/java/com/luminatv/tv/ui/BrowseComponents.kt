@@ -22,11 +22,21 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.luminatv.tv.data.Item
 
-/** Una fila de la barra lateral: nombre en mayúsculas y cantidad a la derecha. */
+/**
+ * Una fila de la barra lateral: nombre en mayúsculas y cantidad a la derecha.
+ * La categoría elegida lleva una rayita rosa a la izquierda; la enfocada, el degradado rosa.
+ */
 @Composable
 fun SidebarRow(
     row: CategoryRow,
@@ -35,32 +45,46 @@ fun SidebarRow(
     modifier: Modifier = Modifier
 ) {
     var focused by remember { mutableStateOf(false) }
-    val background = when {
-        focused -> AccentColor.copy(alpha = 0.55f)
-        selected -> RowSelectedColor
-        else -> Color.Transparent
-    }
+    val shape = RoundedCornerShape(8.dp)
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .padding(horizontal = 6.dp, vertical = 1.dp)
             .onFocusChanged { focused = it.isFocused }
-            .background(background)
+            .clip(shape)
+            .then(
+                when {
+                    focused -> Modifier.background(AccentBrush, shape)
+                    selected -> Modifier.background(RowSelectedColor, shape)
+                    else -> Modifier
+                }
+            )
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(start = 8.dp, end = 12.dp, top = 11.dp, bottom = 11.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        Box(
+            Modifier
+                .width(3.dp)
+                .height(16.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(if (selected && !focused) AccentColor else Color.Transparent)
+        )
+        Spacer(Modifier.width(9.dp))
         Text(
             text = row.name.uppercase(),
-            color = TextPrimary,
-            fontSize = 14.sp,
+            color = if (focused || selected) Color.White else TextSecondary,
+            fontSize = 13.sp,
+            fontWeight = if (focused || selected) FontWeight.Bold else FontWeight.Medium,
+            letterSpacing = 0.3.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
         )
         Text(
             text = row.count.toString(),
-            color = TextSecondary,
-            fontSize = 14.sp,
+            color = if (focused) Color.White.copy(alpha = 0.85f) else TextTertiary,
+            fontSize = 12.sp,
             maxLines = 1,
             modifier = Modifier.padding(start = 8.dp)
         )

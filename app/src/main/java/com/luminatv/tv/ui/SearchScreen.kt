@@ -111,7 +111,7 @@ fun SearchScreen(vm: AppViewModel, initialScope: SearchScope) {
 
     AppBackground {
         Column(Modifier.fillMaxSize()) {
-            TopBar(title = "Búsqueda maestra", centerTitle = true, onBack = { vm.back() })
+            TopBar(title = "Buscar", centerTitle = true, onBack = { vm.back() })
             Column(
                 Modifier
                     .fillMaxWidth()

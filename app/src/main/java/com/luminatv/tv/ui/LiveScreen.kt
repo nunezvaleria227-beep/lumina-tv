@@ -192,7 +192,7 @@ fun LiveScreen(vm: AppViewModel, state: BrowseState<LiveChannel>, title: String,
     AppBackground(art = R.drawable.art_live, dim = 0.58f) {
         Column(Modifier.fillMaxSize()) {
             TopBar(
-                title = "|  $title",
+                title = title,
                 onBack = { vm.back() },
                 onSearch = { vm.open(Screen.Search(SearchScope.LIVE)) },
                 menu = sectionMenu(state, listOf(SortMode.DEFAULT, SortMode.AZ, SortMode.ZA)),

@@ -7,6 +7,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -23,9 +29,9 @@ import com.luminatv.tv.R
 val BackgroundColor = Color(0xFF0C0410)
 val BackgroundGlow = Color(0xFF1A0820)
 val SidebarColor = Color(0xFF0A0310)
-val PanelColor = Color(0xFF1B0C22)
-val PanelFocusedColor = Color(0xFF341640)
-val RowSelectedColor = Color(0xFF26102E)
+val PanelColor = Color(0xFF170A1C)
+val PanelFocusedColor = Color(0xFF2B1433)
+val RowSelectedColor = Color(0x14FFFFFF)
 val AccentColor = Color(0xFFF2268A)
 val AccentLight = Color(0xFFFF7CC3)
 val AccentDeep = Color(0xFFB0127A)
@@ -35,16 +41,58 @@ val TextSecondary = Color(0xFFCDB8C9)
 val TextTertiary = Color(0xFF9F8A9C)
 val AccentText = Color(0xFFFF6FB5)
 val FocusRingColor = Color(0xFFFFFFFF)
-val LineColor = Color(0xFF3A2142)
+val LineColor = Color(0xFF33203A)
 val ErrorColor = Color(0xFFFF6B7A)
 val StarColor = Color(0xFFFFC93C)
+
+/** Fondo "de vidrio" de botones y tarjetas sin foco (se ve el fondo detrás, más elegante). */
+val GlassColor = Color(0x1AFFFFFF)
+val GlassBorder = Color(0x1FFFFFFF)
 
 /** Degradado rosa de la marca (botones principales, insignias). */
 val AccentBrush = Brush.horizontalGradient(listOf(AccentLight, AccentColor, AccentDeep))
 
+/** Letra de toda la app: Inter (la misma familia que usan muchas apps de streaming). */
+val LuminaFont = FontFamily(
+    Font(R.font.inter_regular, FontWeight.Normal),
+    Font(R.font.inter_medium, FontWeight.Medium),
+    Font(R.font.inter_semibold, FontWeight.SemiBold),
+    Font(R.font.inter_bold, FontWeight.Bold),
+    Font(R.font.inter_extrabold, FontWeight.ExtraBold),
+    // "Black" se dibuja con ExtraBold: más limpio en pantalla grande
+    Font(R.font.inter_extrabold, FontWeight.Black)
+)
+
+private fun TextStyle.lumina(weight: FontWeight? = null, tracking: Float? = null) = copy(
+    fontFamily = LuminaFont,
+    fontWeight = weight ?: fontWeight,
+    letterSpacing = tracking?.sp ?: letterSpacing
+)
+
+private val LuminaTypography = Typography().let { t ->
+    Typography(
+        displayLarge = t.displayLarge.lumina(FontWeight.ExtraBold, -0.5f),
+        displayMedium = t.displayMedium.lumina(FontWeight.ExtraBold, -0.5f),
+        displaySmall = t.displaySmall.lumina(FontWeight.Bold, -0.25f),
+        headlineLarge = t.headlineLarge.lumina(FontWeight.ExtraBold, -0.25f),
+        headlineMedium = t.headlineMedium.lumina(FontWeight.ExtraBold, -0.25f),
+        headlineSmall = t.headlineSmall.lumina(FontWeight.Bold),
+        titleLarge = t.titleLarge.lumina(FontWeight.Bold),
+        titleMedium = t.titleMedium.lumina(FontWeight.Bold),
+        titleSmall = t.titleSmall.lumina(FontWeight.SemiBold),
+        bodyLarge = t.bodyLarge.lumina(tracking = 0f),
+        bodyMedium = t.bodyMedium.lumina(tracking = 0f),
+        bodySmall = t.bodySmall.lumina(tracking = 0f),
+        labelLarge = t.labelLarge.lumina(FontWeight.SemiBold),
+        labelMedium = t.labelMedium.lumina(FontWeight.SemiBold),
+        labelSmall = t.labelSmall.lumina(FontWeight.Medium)
+    )
+}
+
 @Composable
 fun MiTvTheme(content: @Composable () -> Unit) {
     MaterialTheme(
+        typography = LuminaTypography,
         colorScheme = darkColorScheme(
             primary = AccentColor,
             onPrimary = OnAccentColor,

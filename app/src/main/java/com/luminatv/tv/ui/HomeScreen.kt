@@ -194,7 +194,7 @@ fun HomeScreen(vm: AppViewModel) {
                 Modifier
                     .width(1.dp)
                     .fillMaxHeight()
-                    .background(Color(0xFF2A1531))
+                    .background(Color(0x14FFFFFF))
             )
             Column(
                 modifier = Modifier
@@ -283,12 +283,12 @@ fun HomeScreen(vm: AppViewModel) {
 private fun HomeRail(top: List<RailItem>, bottom: List<RailItem>) {
     Column(
         modifier = Modifier
-            .width(68.dp)
+            .width(76.dp)
             .fillMaxHeight()
-            .background(SidebarColor)
-            .padding(vertical = 16.dp),
+            .background(Brush.horizontalGradient(listOf(SidebarColor, BackgroundColor)))
+            .padding(vertical = 14.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(3.dp)
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Image(
             painter = painterResource(R.drawable.logo_mark),
@@ -303,32 +303,50 @@ private fun HomeRail(top: List<RailItem>, bottom: List<RailItem>) {
     }
 }
 
+/**
+ * Botón del menú lateral: la sección actual va en rosa suave con su ícono rosa; el botón
+ * enfocado se llena con el degradado de la marca.
+ */
 @Composable
 private fun RailButton(item: RailItem) {
-    FocusCard(
-        onClick = item.onClick,
+    var focused by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(if (focused) 1.06f else 1f, label = "railScale")
+    val shape = RoundedCornerShape(12.dp)
+    Box(
         modifier = Modifier
-            .width(56.dp)
-            .height(44.dp)
-            .then(if (item.requester != null) Modifier.focusRequester(item.requester) else Modifier),
-        shape = RoundedCornerShape(10.dp),
-        scaleOnFocus = 1.06f,
-        background = if (item.active) AccentColor else Color.Transparent,
-        focusedBackground = if (item.active) AccentColor else PanelFocusedColor
-    ) { focused ->
-        val tint = if (item.active || focused) Color.White else TextTertiary
+            .width(60.dp)
+            .height(50.dp)
+            .then(if (item.requester != null) Modifier.focusRequester(item.requester) else Modifier)
+            .onFocusChanged { focused = it.isFocused }
+            .scale(scale)
+            .clip(shape)
+            .then(
+                when {
+                    focused -> Modifier.background(AccentBrush, shape)
+                    item.active -> Modifier.background(AccentColor.copy(alpha = 0.16f), shape)
+                    else -> Modifier
+                }
+            )
+            .clickable(onClick = item.onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        val tint = when {
+            focused -> Color.White
+            item.active -> AccentLight
+            else -> TextTertiary
+        }
         Column(
-            modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Box(Modifier.size(20.dp), contentAlignment = Alignment.Center) { item.icon(tint) }
+            Box(Modifier.size(22.dp), contentAlignment = Alignment.Center) { item.icon(tint) }
+            Spacer(Modifier.height(3.dp))
             Text(
                 text = item.label,
                 color = tint,
-                fontSize = 8.sp,
+                fontSize = 9.sp,
                 maxLines = 1,
-                fontWeight = if (item.active) FontWeight.Bold else FontWeight.Medium
+                fontWeight = if (item.active || focused) FontWeight.Bold else FontWeight.Medium
             )
         }
     }

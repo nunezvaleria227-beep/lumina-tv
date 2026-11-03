@@ -26,7 +26,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.CircularProgressIndicator
@@ -68,6 +71,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.util.Locale
 import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import com.luminatv.tv.R
@@ -123,7 +127,55 @@ fun FocusCard(
     }
 }
 
-/** Botón con foco muy visible (acento al enfocar). */
+/** Ícono que acompaña al texto de un botón (se reconoce por el símbolo con que empieza el texto). */
+private enum class BtnGlyph { PLAY, RESTART, TRAILER, FAV_ON, FAV_OFF, REC, STOP }
+
+private val glyphPrefixes = listOf(
+    "▶" to BtnGlyph.PLAY,
+    "⟲" to BtnGlyph.RESTART,
+    "🎬" to BtnGlyph.TRAILER,
+    "★" to BtnGlyph.FAV_ON,
+    "☆" to BtnGlyph.FAV_OFF,
+    "●" to BtnGlyph.REC,
+    "■" to BtnGlyph.STOP
+)
+
+/** "▶  Reproducir" -> (PLAY, "Reproducir"): el símbolo se cambia por un ícono de verdad. */
+private fun splitGlyph(text: String): Pair<BtnGlyph?, String> {
+    val t = text.trimStart()
+    for ((prefix, glyph) in glyphPrefixes) {
+        if (t.startsWith(prefix)) return glyph to t.removePrefix(prefix).trim()
+    }
+    return null to text
+}
+
+@Composable
+private fun ButtonGlyph(glyph: BtnGlyph, tint: Color, size: Dp, focused: Boolean) {
+    when (glyph) {
+        BtnGlyph.PLAY -> Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = tint, modifier = Modifier.size(size + 4.dp))
+        BtnGlyph.RESTART -> Icon(Icons.Filled.Refresh, contentDescription = null, tint = tint, modifier = Modifier.size(size))
+        BtnGlyph.TRAILER -> GlyphIcon(Glyph.CLAPPER, Modifier.size(size), tint)
+        BtnGlyph.FAV_ON -> Icon(Icons.Filled.Star, contentDescription = null, tint = if (focused) Color.White else StarColor, modifier = Modifier.size(size))
+        BtnGlyph.FAV_OFF -> Icon(Icons.Filled.Add, contentDescription = null, tint = tint, modifier = Modifier.size(size + 2.dp))
+        BtnGlyph.REC -> Box(
+            Modifier
+                .size(size * 0.62f)
+                .clip(CircleShape)
+                .background(if (focused) Color.White else Color(0xFFFF4D5E))
+        )
+        BtnGlyph.STOP -> Box(
+            Modifier
+                .size(size * 0.56f)
+                .clip(RoundedCornerShape(2.dp))
+                .background(tint)
+        )
+    }
+}
+
+/**
+ * Botón de Lumina: "de vidrio" sin foco y rosa degradado con borde blanco al enfocarlo.
+ * Si el texto empieza con ▶ ⟲ 🎬 ★ ☆ ● ■, se dibuja el ícono correspondiente en lugar del símbolo.
+ */
 @Composable
 fun TvButton(
     text: String,
@@ -134,29 +186,48 @@ fun TvButton(
     compact: Boolean = false
 ) {
     var focused by remember { mutableStateOf(false) }
-    val shape = RoundedCornerShape(10.dp)
-    val background = when {
-        focused -> AccentColor
-        selected -> AccentColor.copy(alpha = 0.30f)
-        else -> PanelFocusedColor
+    val parts = remember(text) { splitGlyph(text) }
+    val shape = RoundedCornerShape(if (compact) 8.dp else 10.dp)
+    val scale by animateFloatAsState(if (focused) 1.04f else 1f, label = "btnScale")
+    val fill: Modifier = when {
+        focused -> Modifier.background(AccentBrush, shape)
+        selected -> Modifier.background(AccentColor.copy(alpha = 0.22f), shape)
+        else -> Modifier.background(GlassColor, shape)
     }
-    Box(
+    val borderColor = when {
+        focused -> Color.White.copy(alpha = 0.92f)
+        selected -> AccentColor
+        else -> GlassBorder
+    }
+    Row(
         modifier = modifier
             .onFocusChanged { focused = it.isFocused }
+            .scale(scale)
             .clip(shape)
-            .then(if (focused) Modifier.background(AccentBrush, shape) else Modifier.background(background, shape))
-            .then(if (focused) Modifier.border(2.dp, Color.White.copy(alpha = 0.85f), shape) else Modifier)
-            .then(if (selected && !focused) Modifier.border(2.dp, AccentColor, shape) else Modifier)
+            .then(fill)
+            .border(if (focused) 2.dp else 1.dp, borderColor, shape)
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = if (compact) 12.dp else 24.dp, vertical = if (compact) 8.dp else 12.dp),
-        contentAlignment = Alignment.Center
+            .padding(horizontal = if (compact) 12.dp else 22.dp, vertical = if (compact) 8.dp else 12.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
     ) {
+        val tint = when {
+            !enabled -> TextTertiary
+            focused -> Color.White
+            else -> TextPrimary
+        }
+        val glyph = parts.first
+        if (glyph != null) {
+            ButtonGlyph(glyph, tint, if (compact) 14.dp else 18.dp, focused)
+            Spacer(Modifier.width(if (compact) 6.dp else 8.dp))
+        }
         Text(
-            text = text,
-            color = if (focused) OnAccentColor else TextPrimary,
+            text = parts.second,
+            color = tint,
             fontWeight = FontWeight.SemiBold,
-            fontSize = if (compact) 12.sp else 16.sp,
-            maxLines = 1
+            fontSize = if (compact) 12.sp else 15.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
@@ -246,7 +317,17 @@ fun TopBar(
         leading()
         if (showLogo) {
             AppLogo(Modifier.height(34.dp))
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.width(12.dp))
+            if (!centerTitle && title.isNotBlank()) {
+                // separador fino entre el logo y el nombre de la sección
+                Box(
+                    Modifier
+                        .width(1.dp)
+                        .height(18.dp)
+                        .background(Color.White.copy(alpha = 0.22f))
+                )
+                Spacer(Modifier.width(12.dp))
+            }
         }
         Box(
             Modifier.weight(1f),
@@ -256,7 +337,7 @@ fun TopBar(
                 text = title,
                 color = TextPrimary,
                 fontWeight = FontWeight.Bold,
-                fontSize = 16.sp,
+                fontSize = 17.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -369,7 +450,7 @@ fun OptionsDialog(
 @Composable
 fun PosterImage(url: String?, title: String, modifier: Modifier = Modifier) {
     Box(
-        modifier = modifier.background(Color(0xFF22102A)),
+        modifier = modifier.background(Brush.verticalGradient(listOf(Color(0xFF2B1433), Color(0xFF140818)))),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -388,26 +469,28 @@ fun PosterImage(url: String?, title: String, modifier: Modifier = Modifier) {
     }
 }
 
-/** Cuadrito azul con la calificación, arriba a la izquierda del póster. */
+/** Calificación sobre el póster: estrella dorada y número, en una pastilla oscura. */
 @Composable
 fun RatingBadge(rating10: Float, modifier: Modifier = Modifier) {
-    Box(
+    Row(
         modifier = modifier
-            .size(20.dp)
             .clip(RoundedCornerShape(5.dp))
-            .background(AccentColor),
-        contentAlignment = Alignment.Center
+            .background(Color(0xB30A0310))
+            .padding(horizontal = 5.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
+        Icon(Icons.Filled.Star, contentDescription = null, tint = StarColor, modifier = Modifier.size(10.dp))
+        Spacer(Modifier.width(2.dp))
         Text(
-            text = Math.round(rating10).toString(),
+            text = String.format(Locale.US, "%.1f", rating10),
             color = Color.White,
-            fontSize = 11.sp,
+            fontSize = 10.sp,
             fontWeight = FontWeight.Bold
         )
     }
 }
 
-/** Póster con el título encima, la calificación y la estrella de favorito. */
+/** Póster limpio con la calificación y la estrella de favorito; el título aparece al enfocarlo. */
 @Composable
 fun PosterCard(
     title: String,
@@ -424,14 +507,15 @@ fun PosterCard(
         modifier = modifier,
         shape = RoundedCornerShape(8.dp),
         scaleOnFocus = 1.05f
-    ) {
+    ) { focused ->
         Box(
             Modifier
                 .fillMaxWidth()
                 .aspectRatio(2f / 3f)
         ) {
             PosterImage(url = imageUrl, title = title, modifier = Modifier.fillMaxSize())
-            Box(
+            // Las portadas ya traen su título: el nombre se muestra solo al enfocarla (o si no hay imagen).
+            if (focused || imageUrl.isNullOrBlank()) Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
