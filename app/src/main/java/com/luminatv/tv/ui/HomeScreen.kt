@@ -139,10 +139,8 @@ private val Night = Color(0xFF0A0310)
 @Composable
 fun HomeScreen(vm: AppViewModel) {
     val context = LocalContext.current
-    val scope = androidx.compose.runtime.rememberCoroutineScope()
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var confirmExit by remember { mutableStateOf(false) }
-    var showMore by remember { mutableStateOf(false) }
     var stageFocused by remember { mutableStateOf(false) }
     var headerFocused by remember { mutableStateOf(false) }
     val headerFR = remember { FocusRequester() }
@@ -472,6 +470,7 @@ fun HomeScreen(vm: AppViewModel) {
                     PillButton(
                         text = playLabel,
                         primary = true,
+                        icon = Icons.Filled.PlayArrow,
                         modifier = Modifier
                             .focusRequester(playFR)
                             .focusProperties { up = stageFR; down = dockFR }
@@ -537,57 +536,19 @@ fun HomeScreen(vm: AppViewModel) {
         )
 
         // ------------------------------------------------ barra de menú flotante
-        Dock(
+        LuminaDock(
+            vm = vm,
+            active = DockTab.HOME,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 16.dp),
-            homeRequester = dockFR,
+            activeRequester = dockFR,
             upTarget = if (current != null) playFR else stageFR,
-            items = listOf(
-                DockItem("Buscar", { t -> Icon(Icons.Filled.Search, null, tint = t, modifier = Modifier.size(14.dp)) }) {
-                    vm.open(Screen.Search(SearchScope.ALL))
-                },
-                DockItem("Inicio", { t -> Icon(Icons.Filled.Home, null, tint = t, modifier = Modifier.size(14.dp)) }, home = true) {
-                    stageFR.tryRequestFocus()
-                },
-                DockItem("En vivo", { t -> GlyphIcon(Glyph.TV, Modifier.size(14.dp), t) }) { vm.open(Screen.Live) },
-                DockItem("Películas", { t -> GlyphIcon(Glyph.CLAPPER, Modifier.size(14.dp), t) }) { vm.open(Screen.Movies) },
-                DockItem("Series", { t -> GlyphIcon(Glyph.SERIES, Modifier.size(14.dp), t) }) { vm.open(Screen.SeriesList) },
-                DockItem("Guía", { t -> GlyphIcon(Glyph.EPG, Modifier.size(14.dp), t) }) { vm.open(Screen.Epg) },
-                DockItem("Más", { t -> GlyphIcon(Glyph.GRID, Modifier.size(14.dp), t) }) { showMore = true },
-                DockItem("Ajustes", { t -> Icon(Icons.Filled.Settings, null, tint = t, modifier = Modifier.size(14.dp)) }) {
-                    vm.open(Screen.Settings)
-                }
-            )
+            onActive = { stageFR.tryRequestFocus() }
         )
     }
 
     UpdateDialogs(vm)
-
-    if (showMore) {
-        OptionsDialog(
-            title = "Más opciones",
-            options = listOf(
-                Opt("Continuar viendo") { vm.open(Screen.Continue) },
-                Opt("Mi lista") {
-                    vm.homeShelfKey = "mine"
-                    vm.homeIndex = 0
-                    scope.launch {
-                        withFrameNanos { }
-                        stageFR.tryRequestFocus()
-                    }
-                },
-                Opt("Pantalla múltiple") { vm.open(Screen.Multi) },
-                Opt("Catch up (programas que ya pasaron)") { vm.open(Screen.CatchUp) },
-                Opt("Radio") { vm.open(Screen.Radio) },
-                Opt("Grabaciones") { vm.open(Screen.Recordings) },
-                Opt("Avisos") { vm.open(Screen.Notifications) },
-                Opt("Mi cuenta") { vm.open(Screen.Account) },
-                Opt("Cancelar") { }
-            ),
-            onDismiss = { showMore = false }
-        )
-    }
 
     if (confirmExit) {
         OptionsDialog(
@@ -768,111 +729,6 @@ private fun BoxScope.EmptyHome(loading: Boolean) {
             Text("Aún no hay películas ni series", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(4.dp))
             Text("Entra a En vivo, Películas o Series desde el menú de abajo.", color = TextSecondary, fontSize = 11.sp)
-        }
-    }
-}
-
-// ------------------------------------------------------------------ botones
-
-@Composable
-private fun PillButton(
-    text: String,
-    modifier: Modifier = Modifier,
-    primary: Boolean = false,
-    icon: androidx.compose.ui.graphics.vector.ImageVector? = if (primary) Icons.Filled.PlayArrow else null,
-    onClick: () -> Unit
-) {
-    var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(if (focused) 1.07f else 1f, label = "pill")
-    val shape = RoundedCornerShape(50)
-    Row(
-        modifier = modifier
-            .onFocusChanged { focused = it.isFocused }
-            .scale(scale)
-            .shadow(if (primary || focused) 12.dp else 0.dp, shape, ambientColor = AccentColor, spotColor = AccentColor)
-            .clip(shape)
-            .then(
-                when {
-                    primary || focused -> Modifier.background(PinkButton)
-                    else -> Modifier.background(Color(0x1AFFFFFF))
-                }
-            )
-            .border(
-                if (focused) 2.dp else 0.5.dp,
-                if (focused) Color.White else Color(0x2EFFFFFF),
-                shape
-            )
-            .clickable(onClick = onClick)
-            .height(30.dp)
-            .padding(start = if (icon != null) 13.dp else 16.dp, end = 17.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (icon != null) {
-            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
-            Spacer(Modifier.width(6.dp))
-        }
-        Text(
-            text = text,
-            color = Color.White,
-            fontSize = if (primary) 10.5.sp else 9.5.sp,
-            fontWeight = if (primary || focused) FontWeight.Bold else FontWeight.Medium
-        )
-    }
-}
-
-private class DockItem(
-    val label: String,
-    val icon: @Composable (Color) -> Unit,
-    val home: Boolean = false,
-    val onClick: () -> Unit
-)
-
-@Composable
-private fun Dock(modifier: Modifier, homeRequester: FocusRequester, upTarget: FocusRequester, items: List<DockItem>) {
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(15.dp))
-            .background(Color(0x14FFFFFF))
-            .border(0.5.dp, Color(0x24FFFFFF), RoundedCornerShape(15.dp))
-            .padding(horizontal = 7.dp, vertical = 5.dp),
-        horizontalArrangement = Arrangement.spacedBy(5.dp)
-    ) {
-        items.forEach { item ->
-            var focused by remember { mutableStateOf(false) }
-            val scale by animateFloatAsState(if (focused) 1.08f else 1f, label = "dock")
-            val shape = RoundedCornerShape(10.dp)
-            val tint = if (focused) Color.White else if (item.home) ShelfPink else Color(0xFFB9A2B5)
-            Column(
-                modifier = Modifier
-                    .then(if (item.home) Modifier.focusRequester(homeRequester) else Modifier)
-                    .focusProperties { up = upTarget }
-                    .onFocusChanged { focused = it.isFocused }
-                    .scale(scale)
-                    .shadow(if (focused) 10.dp else 0.dp, shape, ambientColor = AccentColor, spotColor = AccentColor)
-                    .clip(shape)
-                    .then(
-                        when {
-                            focused -> Modifier.background(Brush.linearGradient(listOf(Color(0xFFFF4FA3), AccentDeep)))
-                            item.home -> Modifier.background(AccentColor.copy(alpha = 0.16f))
-                            else -> Modifier
-                        }
-                    )
-                    .border(if (focused) 1.5.dp else 0.dp, if (focused) Color.White else Color.Transparent, shape)
-                    .clickable(onClick = item.onClick)
-                    .size(48.dp, 39.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                item.icon(tint)
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = item.label,
-                    color = tint,
-                    fontSize = 6.5.sp,
-                    fontWeight = if (focused || item.home) FontWeight.Bold else FontWeight.Medium,
-                    maxLines = 1
-                )
-            }
         }
     }
 }
