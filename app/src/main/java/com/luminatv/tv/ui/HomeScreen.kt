@@ -3,76 +3,93 @@ package com.luminatv.tv.ui
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.size.Precision
 import com.luminatv.tv.R
-import com.luminatv.tv.data.AccountInfo
 import com.luminatv.tv.data.Kind
 import com.luminatv.tv.data.Movie
 import com.luminatv.tv.data.MovieInfo
 import com.luminatv.tv.data.ResumeEntry
+import com.luminatv.tv.data.SeriesItem
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlin.math.abs
+import kotlin.math.sign
 
 tailrec fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
@@ -80,42 +97,64 @@ tailrec fun Context.findActivity(): Activity? = when (this) {
     else -> null
 }
 
-/** Un botón del menú lateral. */
-private class RailItem(
-    val label: String,
-    val active: Boolean = false,
-    val requester: FocusRequester? = null,
-    val onClick: () -> Unit,
-    val icon: @Composable (Color) -> Unit
-)
-
-/** Una tarjeta de una fila de pósters. */
-private class Tile(
+/** Una portada del carrusel del inicio. */
+private class Cover(
     val key: String,
     val title: String,
     val image: String?,
-    val rating10: Float,
-    val onClick: () -> Unit
+    val movie: Movie? = null,
+    val series: SeriesItem? = null,
+    val resume: ResumeEntry? = null
 )
 
+/** Una fila del inicio (Continuar viendo, Estrenos, Series nuevas…). */
+private class Shelf(val key: String, val title: String, val covers: List<Cover>)
+
+private fun Movie.toCover(prefix: String) = Cover(prefix + id, name, poster, movie = this)
+private fun SeriesItem.toCover(prefix: String) = Cover(prefix + id, name, cover, series = this)
+
+// Posición de las portadas según su distancia a la del centro (0, 1, 2, 3, 4).
+private val COVER_X = floatArrayOf(0f, 150f, 268f, 366f, 446f)
+private val COVER_SCALE = floatArrayOf(1f, 0.833f, 0.70f, 0.60f, 0.52f)
+private val COVER_ROT = floatArrayOf(0f, 28f, 36f, 42f, 46f)
+private val COVER_ALPHA = floatArrayOf(1f, 0.82f, 0.56f, 0.30f, 0f)
+
+private fun lerpTable(table: FloatArray, distance: Float): Float {
+    val d = distance.coerceIn(0f, (table.size - 1).toFloat())
+    val i = d.toInt().coerceAtMost(table.size - 2)
+    val t = d - i
+    return table[i] + (table[i + 1] - table[i]) * t
+}
+
+private val CardShape = RoundedCornerShape(10.dp)
+private val PinkButton = Brush.linearGradient(listOf(Color(0xFFFF4FA3), Color(0xFFC2167F)))
+private val ShelfPink = Color(0xFFFF9ED0)
+private val Muted = Color(0xFF8E7A8B)
+private val Night = Color(0xFF0A0310)
+
 /**
- * Inicio de Lumina TV: menú lateral fijo, la película más nueva en grande ("Ver ahora")
- * y abajo filas para seguir viendo y descubrir lo nuevo.
+ * Inicio de Lumina TV: un carrusel de portadas en 3D al centro, el fondo toma los colores
+ * de la portada elegida, abajo el título con sus botones y una barra de menú flotante.
  */
 @Composable
 fun HomeScreen(vm: AppViewModel) {
     val context = LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var confirmExit by remember { mutableStateOf(false) }
     var showMore by remember { mutableStateOf(false) }
-    val heroPlay = remember { FocusRequester() }
+    var stageFocused by remember { mutableStateOf(false) }
+    var headerFocused by remember { mutableStateOf(false) }
+    val headerFR = remember { FocusRequester() }
+    val stageFR = remember { FocusRequester() }
+    val playFR = remember { FocusRequester() }
+    val dockFR = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
         vm.live.ensureLoaded()
         vm.movies.ensureLoaded()
         vm.series.ensureLoaded()
     }
-    // El reloj se actualiza solo.
     LaunchedEffect(Unit) {
         while (true) {
             now = System.currentTimeMillis()
@@ -123,137 +162,404 @@ fun HomeScreen(vm: AppViewModel) {
         }
     }
 
+    // ------------------------------------------------------------------ filas
     val movies = vm.movies.visibleItems
     val seriesItems = vm.series.visibleItems
-    val newMovies = remember(movies) { movies.sortedByDescending { it.added }.take(24) }
+    val resume = vm.resumeEntries
+    val favMovies = vm.movies.favoriteList
+    val favSeries = vm.series.favoriteList
+    val newMovies = remember(movies) { movies.sortedByDescending { it.added }.take(30) }
     val topMovies = remember(movies) {
-        movies.filter { it.rating10 >= 7f }.sortedByDescending { it.rating10 }.take(24)
+        movies.filter { it.rating10 >= 7f }.sortedByDescending { it.rating10 }.take(30)
     }
-    val newSeries = remember(seriesItems) { seriesItems.sortedByDescending { it.added }.take(24) }
-    val featured = newMovies.firstOrNull()
-    var featuredInfo by remember(featured?.id) { mutableStateOf<MovieInfo?>(null) }
-    var featuredFav by remember(featured?.id) {
-        mutableStateOf(featured?.let { vm.isFavorite(Kind.MOVIES, it.id) } ?: false)
+    val newSeries = remember(seriesItems) { seriesItems.sortedByDescending { it.added }.take(30) }
+    val shelves = remember(resume, newMovies, newSeries, topMovies, favMovies, favSeries) {
+        buildList {
+            if (resume.isNotEmpty()) {
+                add(Shelf("resume", "Continuar viendo", resume.map { Cover("r" + it.key, it.title, it.image, resume = it) }))
+            }
+            if (newMovies.isNotEmpty()) add(Shelf("new", "Estrenos", newMovies.map { it.toCover("n") }))
+            if (newSeries.isNotEmpty()) add(Shelf("series", "Series nuevas", newSeries.map { it.toCover("s") }))
+            if (topMovies.isNotEmpty()) add(Shelf("top", "Mejor calificadas", topMovies.map { it.toCover("t") }))
+            val mine = favMovies.map { it.toCover("fm") } + favSeries.map { it.toCover("fs") }
+            if (mine.isNotEmpty()) add(Shelf("mine", "Mi lista", mine))
+        }
     }
-    LaunchedEffect(featured?.id) {
-        val movie = featured ?: return@LaunchedEffect
-        featuredInfo = try {
+
+    val shelfIdx = shelves.indexOfFirst { it.key == vm.homeShelfKey }.let { found ->
+        if (found >= 0) found else shelves.indexOfFirst { it.key == "new" }.coerceAtLeast(0)
+    }
+    val shelf = shelves.getOrNull(shelfIdx)
+    val count = shelf?.covers?.size ?: 0
+    val index = vm.homeIndex.coerceIn(0, (count - 1).coerceAtLeast(0))
+    val current = shelf?.covers?.getOrNull(index)
+
+    fun changeShelf(step: Int) {
+        if (shelves.isEmpty()) return
+        val next = (shelfIdx + step).coerceIn(0, shelves.size - 1)
+        if (next == shelfIdx) return
+        vm.homeShelfKey = shelves[next].key
+        vm.homeIndex = 0
+    }
+
+    fun moveCover(step: Int) {
+        if (count == 0) return
+        vm.homeIndex = (vm.homeIndex.coerceIn(0, count - 1) + step).coerceIn(0, count - 1)
+    }
+
+    // Ficha de la película enfocada (fondo grande, año, género y duración); se pide al detenerse en ella.
+    val infos = remember { mutableStateMapOf<String, MovieInfo?>() }
+    val focusedMovie = current?.movie
+    LaunchedEffect(focusedMovie?.id) {
+        val movie = focusedMovie ?: return@LaunchedEffect
+        if (infos.containsKey(movie.id)) return@LaunchedEffect
+        delay(350)
+        infos[movie.id] = try {
             vm.loadMovieInfo(movie)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             null
         }
     }
-    val resume = vm.resumeEntries
+    val info = focusedMovie?.let { infos[it.id] }
 
-    // Al entrar, el foco va al botón grande de "Ver ahora".
-    LaunchedEffect(featured != null) {
-        withFrameNanos { }
-        withFrameNanos { }
-        heroPlay.tryRequestFocus()
+    // Movimiento suave del carrusel.
+    val pos = remember { Animatable(index.toFloat()) }
+    val stageAlpha = remember { Animatable(1f) }
+    var lastShelf by remember { mutableStateOf(shelf?.key) }
+    LaunchedEffect(index, shelf?.key) {
+        if (shelf?.key != lastShelf) {
+            lastShelf = shelf?.key
+            pos.snapTo(index.toFloat())
+            launch {
+                stageAlpha.snapTo(0f)
+                stageAlpha.animateTo(1f, tween(380))
+            }
+        } else {
+            pos.animateTo(index.toFloat(), spring(dampingRatio = 0.86f, stiffness = 280f))
+        }
     }
 
-    val rail = listOf(
-        RailItem("Buscar", onClick = { vm.open(Screen.Search(SearchScope.ALL)) }) { tint ->
-            Icon(Icons.Filled.Search, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
-        },
-        RailItem("Inicio", active = true, onClick = { heroPlay.tryRequestFocus() }) { tint ->
-            Icon(Icons.Filled.Home, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
-        },
-        RailItem("En vivo", onClick = { vm.open(Screen.Live) }) { tint ->
-            GlyphIcon(Glyph.TV, Modifier.size(20.dp), tint)
-        },
-        RailItem("Películas", onClick = { vm.open(Screen.Movies) }) { tint ->
-            GlyphIcon(Glyph.CLAPPER, Modifier.size(20.dp), tint)
-        },
-        RailItem("Series", onClick = { vm.open(Screen.SeriesList) }) { tint ->
-            GlyphIcon(Glyph.SERIES, Modifier.size(20.dp), tint)
-        },
-        RailItem("Guía", onClick = { vm.open(Screen.Epg) }) { tint ->
-            GlyphIcon(Glyph.EPG, Modifier.size(20.dp), tint)
-        },
-        RailItem("Más", onClick = { showMore = true }) { tint ->
-            GlyphIcon(Glyph.GRID, Modifier.size(20.dp), tint)
+    // Al entrar, el foco va al carrusel.
+    LaunchedEffect(Unit) {
+        withFrameNanos { }
+        withFrameNanos { }
+        stageFR.tryRequestFocus()
+    }
+
+    BackHandler {
+        if (stageFocused) confirmExit = true else stageFR.tryRequestFocus()
+    }
+
+    fun primary(cover: Cover) {
+        when {
+            cover.resume != null -> vm.playResume(context, cover.resume)
+            cover.movie != null -> vm.openMovie(cover.movie)
+            cover.series != null -> vm.openSeries(cover.series)
         }
-    )
-    val railBottom = listOf(
-        RailItem("Ajustes", onClick = { vm.open(Screen.Settings) }) { tint ->
-            Icon(Icons.Filled.Settings, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
-        },
-        RailItem("Salir", onClick = { confirmExit = true }) { tint ->
-            GlyphIcon(Glyph.POWER, Modifier.size(20.dp), tint)
-        }
-    )
+    }
 
     Box(
         Modifier
             .fillMaxSize()
-            .background(BackgroundColor)
+            .background(Night)
     ) {
-        Row(Modifier.fillMaxSize()) {
-            HomeRail(rail, railBottom)
-            Box(
-                Modifier
-                    .width(1.dp)
-                    .fillMaxHeight()
-                    .background(Color(0x14FFFFFF))
-            )
-            Box(
-                Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-            ) {
-            // Imagen de la película destacada a pantalla completa (como las apps de cine).
-            HomeBackdrop(
-                featuredInfo?.backdrop?.takeIf { it.isNotBlank() } ?: featured?.poster?.takeIf { it.isNotBlank() }
-            )
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-            ) {
-                Hero(
-                    vm = vm,
-                    featured = featured,
-                    info = featuredInfo,
-                    now = now,
-                    playRequester = heroPlay,
-                    favorite = featuredFav,
-                    onPlay = { featured?.let { vm.playMovie(context, it, info = featuredInfo) } },
-                    onInfo = { featured?.let { vm.openMovie(it) } },
-                    onToggleFav = {
-                        featured?.let {
-                            vm.toggleFavorite(Kind.MOVIES, it.id)
-                            featuredFav = vm.isFavorite(Kind.MOVIES, it.id)
-                        }
-                    },
-                    onLive = { vm.open(Screen.Live) }
+        // ------------------------------------------------ fondo con los colores de la portada
+        val ambient = info?.backdrop?.takeIf { it.isNotBlank() } ?: current?.image?.takeIf { it.isNotBlank() }
+        Crossfade(targetState = ambient, animationSpec = tween(700), label = "ambient") { url ->
+            if (url == null) {
+                Image(
+                    bitmap = rememberArt(R.drawable.bg_home),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer { alpha = 0.7f }
                 )
-                if (resume.isNotEmpty()) {
-                    ContinueRow(resume) { vm.playResume(context, it) }
-                }
-                if (newMovies.isNotEmpty()) {
-                    PosterRow(
-                        "Películas nuevas",
-                        newMovies.map { m -> Tile("m" + m.id, m.name, m.poster, m.rating10) { vm.openMovie(m) } }
-                    )
-                }
-                if (newSeries.isNotEmpty()) {
-                    PosterRow(
-                        "Series nuevas",
-                        newSeries.map { s -> Tile("s" + s.id, s.name, s.cover, s.rating10) { vm.openSeries(s) } }
-                    )
-                }
-                if (topMovies.isNotEmpty()) {
-                    PosterRow(
-                        "Las mejor calificadas",
-                        topMovies.map { m -> Tile("t" + m.id, m.name, m.poster, m.rating10) { vm.openMovie(m) } }
-                    )
-                }
-                Spacer(Modifier.height(28.dp))
-            }
+            } else {
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(url)
+                        .memoryCacheKey("ambient:$url")
+                        .size(72)
+                        .precision(Precision.EXACT)
+                        .build(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer { alpha = 0.62f }
+                        .blur(48.dp)
+                )
             }
         }
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.radialGradient(
+                        0.25f to Night.copy(alpha = 0f),
+                        1f to Night.copy(alpha = 0.88f),
+                        radius = 1500f
+                    )
+                )
+        )
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(240.dp)
+                .align(Alignment.BottomCenter)
+                .background(Brush.verticalGradient(0f to Night.copy(alpha = 0f), 0.5f to Night))
+        )
+
+        // ------------------------------------------------ logo y reloj
+        AppLogo(
+            Modifier
+                .padding(start = 36.dp, top = 22.dp)
+                .width(104.dp)
+        )
+        Column(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 18.dp, end = 36.dp),
+            horizontalAlignment = Alignment.End
+        ) {
+            Text(formatClock(now), color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text(homeDate(now), color = Color(0xFFB9A2B5), fontSize = 8.sp, fontWeight = FontWeight.Medium)
+        }
+
+        // ------------------------------------------------ nombre de la fila (▲ para cambiarla)
+        Column(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 50.dp)
+                .focusRequester(headerFR)
+                .onFocusChanged { headerFocused = it.isFocused }
+                .onPreviewKeyEvent { e ->
+                    if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                    when (e.key) {
+                        Key.DirectionLeft -> { changeShelf(-1); true }
+                        Key.DirectionRight -> { changeShelf(1); true }
+                        Key.DirectionDown, Key.Enter, Key.DirectionCenter, Key.NumPadEnter -> {
+                            stageFR.tryRequestFocus(); true
+                        }
+                        Key.DirectionUp -> true
+                        else -> false
+                    }
+                }
+                .focusable(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            val prev = shelves.getOrNull(shelfIdx - 1)?.title
+            val next = shelves.getOrNull(shelfIdx + 1)?.title
+            Text(
+                text = when {
+                    !headerFocused -> if (shelves.size > 1) "▲  Cambiar fila" else " "
+                    else -> listOfNotNull(prev?.let { "◀  $it" }, next?.let { "$it  ▶" }).joinToString("     ·     ")
+                },
+                color = Muted,
+                fontSize = 8.sp,
+                fontWeight = FontWeight.Medium,
+                letterSpacing = 0.5.sp
+            )
+            Spacer(Modifier.height(4.dp))
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(if (headerFocused) AccentColor.copy(alpha = 0.22f) else Color.Transparent)
+                    .border(1.dp, if (headerFocused) AccentLight else Color.Transparent, RoundedCornerShape(50))
+                    .padding(horizontal = 14.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Sparkle(9.dp)
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = (shelf?.title ?: "Inicio").uppercase(),
+                    color = ShelfPink,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 2.sp
+                )
+            }
+        }
+
+        // ------------------------------------------------ carrusel de portadas
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(240.dp)
+                .offset(y = 93.dp)
+                .focusRequester(stageFR)
+                .onFocusChanged { stageFocused = it.isFocused }
+                .onPreviewKeyEvent { e ->
+                    if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                    when (e.key) {
+                        Key.DirectionLeft -> { moveCover(-1); true }
+                        Key.DirectionRight -> { moveCover(1); true }
+                        Key.DirectionUp -> { headerFR.tryRequestFocus(); true }
+                        Key.DirectionDown -> {
+                            if (current != null) playFR.tryRequestFocus() else dockFR.tryRequestFocus()
+                            true
+                        }
+                        else -> false
+                    }
+                }
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) { current?.let { primary(it) } }
+                .graphicsLayer { alpha = stageAlpha.value },
+            contentAlignment = Alignment.Center
+        ) {
+            if (shelf == null) {
+                EmptyHome(loading = vm.movies.loading || vm.series.loading)
+            } else {
+                val first = (index - 5).coerceAtLeast(0)
+                val last = (index + 5).coerceAtMost(count - 1)
+                for (i in first..last) {
+                    val cover = shelf.covers[i]
+                    key(cover.key) {
+                        CoverCard(
+                            cover = cover,
+                            isCenter = i == index,
+                            ringOn = stageFocused && i == index,
+                            modifier = Modifier
+                                .zIndex(10f - abs(i - index))
+                                .graphicsLayer {
+                                    val d = i - pos.value
+                                    val a = abs(d)
+                                    val s = lerpTable(COVER_SCALE, a)
+                                    translationX = sign(d) * lerpTable(COVER_X, a) * density
+                                    rotationY = -sign(d) * lerpTable(COVER_ROT, a)
+                                    scaleX = s
+                                    scaleY = s
+                                    alpha = lerpTable(COVER_ALPHA, a)
+                                    cameraDistance = 14f * density
+                                }
+                        )
+                    }
+                }
+            }
+        }
+
+        // ------------------------------------------------ título, datos y botones
+        if (current != null) {
+            Column(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 340.dp)
+                    .width(720.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = current.title,
+                    color = TextPrimary,
+                    fontSize = 25.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.5).sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center
+                )
+                MetaLine(current, info)
+                Spacer(Modifier.height(10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val playLabel = when {
+                        current.resume != null -> "Continuar"
+                        current.series != null -> "Ver serie"
+                        else -> "Ver ahora"
+                    }
+                    PillButton(
+                        text = playLabel,
+                        primary = true,
+                        modifier = Modifier
+                            .focusRequester(playFR)
+                            .focusProperties { up = stageFR; down = dockFR }
+                    ) {
+                        when {
+                            current.resume != null -> vm.playResume(context, current.resume)
+                            current.movie != null -> vm.playMovie(context, current.movie, info = info)
+                            current.series != null -> vm.openSeries(current.series)
+                        }
+                    }
+                    val resumeMovie = current.resume?.takeIf { it.type == "movie" }?.let { vm.movies.catalog?.byId?.get(it.id) }
+                    if (current.movie != null || current.series != null || resumeMovie != null) {
+                        PillButton(
+                            text = "Más información",
+                            modifier = Modifier.focusProperties { up = stageFR; down = dockFR }
+                        ) {
+                            when {
+                                current.movie != null -> vm.openMovie(current.movie)
+                                current.series != null -> vm.openSeries(current.series)
+                                resumeMovie != null -> vm.openMovie(resumeMovie)
+                            }
+                        }
+                    }
+                    val favKind = if (current.series != null) Kind.SERIES else Kind.MOVIES
+                    val favId = current.movie?.id ?: current.series?.id
+                    if (favId != null) {
+                        val fav = vm.isFavorite(favKind, favId)
+                        PillButton(
+                            text = if (fav) "En mi lista" else "Mi lista",
+                            icon = if (fav) Icons.Filled.Check else Icons.Filled.Add,
+                            modifier = Modifier.focusProperties { up = stageFR; down = dockFR }
+                        ) { vm.toggleFavorite(favKind, favId) }
+                    }
+                }
+            }
+        }
+
+        // ------------------------------------------------ filas (abajo a la izquierda)
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(start = 36.dp, bottom = 26.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            shelves.forEachIndexed { i, s ->
+                val on = i == shelfIdx
+                Text(
+                    text = if (on) "●  ${s.title}" else s.title,
+                    color = if (on) ShelfPink else Muted,
+                    fontSize = 8.sp,
+                    fontWeight = if (on) FontWeight.Bold else FontWeight.Medium
+                )
+            }
+        }
+        Text(
+            text = "◀ ▶  recorrer   ·   ▲  cambiar fila",
+            color = Muted,
+            fontSize = 8.sp,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 36.dp, bottom = 28.dp)
+        )
+
+        // ------------------------------------------------ barra de menú flotante
+        Dock(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 16.dp),
+            homeRequester = dockFR,
+            upTarget = if (current != null) playFR else stageFR,
+            items = listOf(
+                DockItem("Buscar", { t -> Icon(Icons.Filled.Search, null, tint = t, modifier = Modifier.size(14.dp)) }) {
+                    vm.open(Screen.Search(SearchScope.ALL))
+                },
+                DockItem("Inicio", { t -> Icon(Icons.Filled.Home, null, tint = t, modifier = Modifier.size(14.dp)) }, home = true) {
+                    stageFR.tryRequestFocus()
+                },
+                DockItem("En vivo", { t -> GlyphIcon(Glyph.TV, Modifier.size(14.dp), t) }) { vm.open(Screen.Live) },
+                DockItem("Películas", { t -> GlyphIcon(Glyph.CLAPPER, Modifier.size(14.dp), t) }) { vm.open(Screen.Movies) },
+                DockItem("Series", { t -> GlyphIcon(Glyph.SERIES, Modifier.size(14.dp), t) }) { vm.open(Screen.SeriesList) },
+                DockItem("Guía", { t -> GlyphIcon(Glyph.EPG, Modifier.size(14.dp), t) }) { vm.open(Screen.Epg) },
+                DockItem("Más", { t -> GlyphIcon(Glyph.GRID, Modifier.size(14.dp), t) }) { showMore = true },
+                DockItem("Ajustes", { t -> Icon(Icons.Filled.Settings, null, tint = t, modifier = Modifier.size(14.dp)) }) {
+                    vm.open(Screen.Settings)
+                }
+            )
+        )
     }
 
     UpdateDialogs(vm)
@@ -263,6 +569,14 @@ fun HomeScreen(vm: AppViewModel) {
             title = "Más opciones",
             options = listOf(
                 Opt("Continuar viendo") { vm.open(Screen.Continue) },
+                Opt("Mi lista") {
+                    vm.homeShelfKey = "mine"
+                    vm.homeIndex = 0
+                    scope.launch {
+                        withFrameNanos { }
+                        stageFR.tryRequestFocus()
+                    }
+                },
                 Opt("Pantalla múltiple") { vm.open(Screen.Multi) },
                 Opt("Catch up (programas que ya pasaron)") { vm.open(Screen.CatchUp) },
                 Opt("Radio") { vm.open(Screen.Radio) },
@@ -279,488 +593,307 @@ fun HomeScreen(vm: AppViewModel) {
         OptionsDialog(
             title = "¿Qué quieres hacer?",
             options = listOf(
+                Opt("Seguir viendo") { },
                 Opt("Cerrar sesión") { vm.logout() },
-                Opt("Salir de la aplicación") { context.findActivity()?.finish() },
-                Opt("Cancelar") { }
+                Opt("Salir de la aplicación") { context.findActivity()?.finish() }
             ),
             onDismiss = { confirmExit = false }
         )
     }
 }
 
-// ------------------------------------------------------------------ menú lateral
+// ------------------------------------------------------------------ portada
 
 @Composable
-private fun HomeRail(top: List<RailItem>, bottom: List<RailItem>) {
-    Column(
-        modifier = Modifier
-            .width(76.dp)
-            .fillMaxHeight()
-            .background(Brush.horizontalGradient(listOf(SidebarColor, BackgroundColor)))
-            .padding(vertical = 14.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        Image(
-            painter = painterResource(R.drawable.logo_mark),
-            contentDescription = "Lumina TV",
-            modifier = Modifier
-                .padding(bottom = 10.dp)
-                .size(44.dp)
-        )
-        top.forEach { RailButton(it) }
-        Spacer(Modifier.weight(1f))
-        bottom.forEach { RailButton(it) }
-    }
-}
-
-/**
- * Botón del menú lateral: la sección actual va en rosa suave con su ícono rosa; el botón
- * enfocado se llena con el degradado de la marca.
- */
-@Composable
-private fun RailButton(item: RailItem) {
-    var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(if (focused) 1.06f else 1f, label = "railScale")
-    val shape = RoundedCornerShape(12.dp)
+private fun CoverCard(cover: Cover, isCenter: Boolean, ringOn: Boolean, modifier: Modifier) {
     Box(
-        modifier = Modifier
-            .width(60.dp)
-            .height(50.dp)
-            .then(if (item.requester != null) Modifier.focusRequester(item.requester) else Modifier)
-            .onFocusChanged { focused = it.isFocused }
-            .scale(scale)
-            .clip(shape)
-            .then(
-                when {
-                    focused -> Modifier.background(AccentBrush, shape)
-                    item.active -> Modifier.background(AccentColor.copy(alpha = 0.16f), shape)
-                    else -> Modifier
-                }
+        modifier = modifier
+            .size(150.dp, 225.dp)
+            .shadow(
+                elevation = if (ringOn) 26.dp else 14.dp,
+                shape = CardShape,
+                ambientColor = if (ringOn) AccentColor else Color.Black,
+                spotColor = if (ringOn) AccentColor else Color.Black
             )
-            .clickable(onClick = item.onClick),
-        contentAlignment = Alignment.Center
+            .clip(CardShape)
+            .background(PanelColor)
+            .border(if (ringOn) 2.dp else 0.5.dp, if (ringOn) Color.White else Color(0x22FFFFFF), CardShape)
     ) {
-        val tint = when {
-            focused -> Color.White
-            item.active -> AccentLight
-            else -> TextTertiary
-        }
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Box(Modifier.size(22.dp), contentAlignment = Alignment.Center) { item.icon(tint) }
-            Spacer(Modifier.height(3.dp))
+        if (cover.image.isNullOrBlank()) {
             Text(
-                text = item.label,
-                color = tint,
-                fontSize = 9.sp,
-                maxLines = 1,
-                fontWeight = if (item.active || focused) FontWeight.Bold else FontWeight.Medium
-            )
-        }
-    }
-}
-
-// ------------------------------------------------------------------ destacado
-
-/**
- * Fondo de la pantalla de inicio: la imagen de la película destacada ocupa toda la pantalla y se
- * funde con el morado hacia la izquierda (donde va el texto) y hacia abajo (donde van las filas).
- */
-@Composable
-private fun HomeBackdrop(art: String?) {
-    Box(Modifier.fillMaxSize()) {
-        if (art != null) {
-            AsyncImage(
-                model = art,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                alignment = Alignment.TopCenter,
-                modifier = Modifier.fillMaxSize()
+                text = cover.title,
+                color = TextSecondary,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(12.dp)
             )
         } else {
-            Image(
-                bitmap = rememberArt(R.drawable.bg_home),
-                contentDescription = null,
+            AsyncImage(
+                model = cover.image,
+                contentDescription = cover.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
         }
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.horizontalGradient(
-                        0f to BackgroundColor.copy(alpha = 0.97f),
-                        0.30f to BackgroundColor.copy(alpha = 0.80f),
-                        0.62f to BackgroundColor.copy(alpha = 0.25f),
-                        1f to Color.Transparent
-                    )
-                )
-        )
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        0f to BackgroundColor.copy(alpha = 0.45f),
-                        0.16f to Color.Transparent,
-                        0.46f to Color.Transparent,
-                        0.70f to BackgroundColor.copy(alpha = 0.92f),
-                        1f to BackgroundColor
-                    )
-                )
-        )
-    }
-}
-
-
-@Composable
-private fun Hero(
-    vm: AppViewModel,
-    featured: Movie?,
-    info: MovieInfo?,
-    now: Long,
-    playRequester: FocusRequester,
-    favorite: Boolean,
-    onPlay: () -> Unit,
-    onInfo: () -> Unit,
-    onToggleFav: () -> Unit,
-    onLive: () -> Unit
-) {
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .height(360.dp)
-    ) {
-        // Logo de Lumina TV arriba a la izquierda (sin destacado ya aparece grande abajo).
-        if (featured != null) {
-            AppLogo(
+        if (!isCenter) {
+            Box(
                 Modifier
-                    .align(Alignment.TopStart)
-                    .padding(start = 40.dp, top = 20.dp)
-                    .width(132.dp)
+                    .fillMaxWidth()
+                    .height(70.dp)
+                    .align(Alignment.BottomCenter)
+                    .background(Brush.verticalGradient(listOf(Night.copy(alpha = 0f), Night.copy(alpha = 0.92f))))
+            )
+            Text(
+                text = cover.title,
+                color = TextPrimary,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                lineHeight = 12.sp,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 8.dp, vertical = 8.dp)
             )
         }
-
-        // Cuenta y reloj arriba a la derecha.
-        Row(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 20.dp, end = 36.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            AccountChip(vm.account, now)
-            Spacer(Modifier.width(16.dp))
-            Column(horizontalAlignment = Alignment.End) {
-                Text(formatClock(now), color = TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                Text(formatDateLong(now), color = TextTertiary, fontSize = 10.sp)
-            }
-        }
-
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(start = 40.dp, bottom = 8.dp)
-                .width(440.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            if (featured != null) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "NUEVO",
-                        color = Color.White,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp,
-                        modifier = Modifier
-                            .background(AccentBrush, RoundedCornerShape(3.dp))
-                            .padding(horizontal = 6.dp, vertical = 3.dp)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text("PELÍCULA", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
-                }
-                Text(
-                    text = featured.name,
-                    color = TextPrimary,
-                    fontSize = 40.sp,
-                    lineHeight = 42.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = (-0.5).sp,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+        val resume = cover.resume
+        if (resume != null && resume.durationMs > 0) {
+            Box(
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .background(Color(0x55FFFFFF))
+            ) {
+                Box(
+                    Modifier
+                        .fillMaxWidth(resume.fraction.coerceIn(0.02f, 1f))
+                        .height(4.dp)
+                        .background(AccentBrush)
                 )
-                val meta = listOfNotNull(
-                    info?.releaseDate?.take(4)?.takeIf { it.isNotBlank() },
-                    info?.genre?.takeIf { it.isNotBlank() },
-                    info?.duration?.takeIf { it.isNotBlank() }
-                ).joinToString("  •  ")
-                // Datos de la película en una línea: calificación, año, género, duración y "HD".
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (featured.rating10 >= 0.5f) {
-                        Icon(Icons.Filled.Star, contentDescription = null, tint = StarColor, modifier = Modifier.size(13.dp))
-                        Spacer(Modifier.width(3.dp))
-                        Text(
-                            String.format(java.util.Locale.US, "%.1f", featured.rating10),
-                            color = TextPrimary,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(Modifier.width(10.dp))
-                    }
-                    if (meta.isNotEmpty()) {
-                        Text(
-                            meta,
-                            color = TextPrimary.copy(alpha = 0.82f),
-                            fontSize = 12.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false)
-                        )
-                        Spacer(Modifier.width(10.dp))
-                    }
-                    Text(
-                        text = "HD",
-                        color = TextPrimary,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier
-                            .border(1.dp, TextPrimary.copy(alpha = 0.55f), RoundedCornerShape(3.dp))
-                            .padding(horizontal = 4.dp, vertical = 1.dp)
-                    )
-                }
-                val plot = info?.plot
-                if (!plot.isNullOrBlank()) {
-                    Text(
-                        text = plot,
-                        color = Color(0xFFD9C8D6),
-                        fontSize = 12.sp,
-                        lineHeight = 17.sp,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                Row(
-                    modifier = Modifier.padding(top = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    HeroPrimaryButton("Ver ahora", Icons.Filled.PlayArrow, onPlay, Modifier.focusRequester(playRequester))
-                    HeroButton("Más información", Icons.Filled.Info, onInfo)
-                    HeroIconButton(
-                        icon = if (favorite) Icons.Filled.Check else Icons.Filled.Add,
-                        description = if (favorite) "Quitar de Mi lista" else "Agregar a Mi lista",
-                        onClick = onToggleFav
-                    )
-                }
-            } else {
-                Text("Bienvenido a", color = TextSecondary, fontSize = 14.sp)
-                AppLogo(Modifier.height(64.dp))
-                Text(
-                    text = if (vm.movies.loading) "Preparando tu lista… (solo tarda la primera vez)"
-                    else "Tus series y películas en un mismo lugar.",
-                    color = TextSecondary,
-                    fontSize = 12.sp
-                )
-                Row(Modifier.padding(top = 6.dp)) {
-                    HeroPrimaryButton("Ver TV en vivo", Icons.Filled.PlayArrow, onLive, Modifier.focusRequester(playRequester))
-                }
             }
         }
     }
 }
 
+/** Año, género, duración, calificación y "HD" de lo enfocado. */
 @Composable
-private fun AccountChip(account: AccountInfo?, now: Long) {
-    val expiresAt = account?.expiresAt
-    val daysLeft = expiresAt?.let { (it * 1000 - now) / 86_400_000L }
-    val warn = daysLeft != null && daysLeft <= 7
-    val text = when {
-        expiresAt == null || daysLeft == null -> "Cuenta activa"
-        daysLeft <= 0 -> "Tu cuenta venció"
-        warn -> "Vence en $daysLeft días"
-        else -> "Cuenta activa · vence ${formatDateLong(expiresAt * 1000)}"
+private fun MetaLine(cover: Cover, info: MovieInfo?) {
+    val parts = mutableListOf<String>()
+    var rating = 0f
+    when {
+        cover.resume != null -> {
+            cover.resume.subtitle?.takeIf { it.isNotBlank() }?.let { parts += it }
+            if (cover.resume.positionMs > 0) parts += "Te quedaste en " + formatDuration(cover.resume.positionMs / 1000)
+        }
+        cover.movie != null -> {
+            info?.releaseDate?.take(4)?.takeIf { it.length == 4 }?.let { parts += it }
+            info?.genre?.takeIf { it.isNotBlank() }?.let { g ->
+                parts += g.split(',', '/').map { it.trim() }.filter { it.isNotEmpty() }.take(2).joinToString(", ")
+            }
+            info?.duration?.takeIf { it.isNotBlank() }?.let { parts += prettyRuntime(it) }
+            rating = cover.movie.rating10
+        }
+        cover.series != null -> {
+            parts += "Serie"
+            rating = cover.series.rating10
+        }
     }
-    val shape = RoundedCornerShape(50)
     Row(
-        modifier = Modifier
-            .clip(shape)
-            .background(Color(0xCC1A0A20))
-            .border(1.dp, LineColor, shape)
-            .padding(horizontal = 10.dp, vertical = 5.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier = Modifier.padding(top = 3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
     ) {
-        Box(
-            Modifier
-                .size(6.dp)
-                .clip(CircleShape)
-                .background(if (warn) AccentColor else Color(0xFF3DDC84))
-        )
-        Spacer(Modifier.width(6.dp))
-        Text(text, color = TextSecondary, fontSize = 10.sp, maxLines = 1)
+        parts.forEachIndexed { i, p ->
+            if (i > 0) Text("  •  ", color = Color(0xFF6A4A6E), fontSize = 10.sp)
+            Text(p, color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+        }
+        if (rating >= 0.5f) {
+            if (parts.isNotEmpty()) Spacer(Modifier.width(10.dp))
+            Icon(Icons.Filled.Star, contentDescription = null, tint = StarColor, modifier = Modifier.size(11.dp))
+            Spacer(Modifier.width(3.dp))
+            Text(
+                String.format(java.util.Locale.US, "%.1f", rating),
+                color = TextPrimary,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        if (cover.resume == null) {
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = "HD",
+                color = TextSecondary,
+                fontSize = 7.5.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .border(0.5.dp, Color(0xFF6A4A6E), RoundedCornerShape(3.dp))
+                    .padding(horizontal = 4.dp, vertical = 0.dp)
+            )
+        }
     }
 }
 
-/** Botón principal rosa de Lumina; al enfocarlo crece y se rodea de blanco. */
+/** "martes 3 de noviembre" */
+private fun homeDate(millis: Long): String =
+    java.text.SimpleDateFormat("EEEE d 'de' MMMM", java.util.Locale.forLanguageTag("es-MX")).format(java.util.Date(millis))
+
+/** "02:08:00" o "128 min" → "2 h 08 min". */
+private fun prettyRuntime(raw: String): String {
+    val t = raw.trim()
+    val clock = Regex("""^(\d{1,2}):(\d{2})(?::(\d{2}))?$""").find(t)
+    val minutes = when {
+        clock != null -> clock.groupValues[1].toInt() * 60 + clock.groupValues[2].toInt()
+        else -> Regex("""^(\d{2,3})\s*(min)?$""").find(t)?.groupValues?.get(1)?.toIntOrNull()
+    } ?: return t
+    if (minutes <= 0) return t
+    return if (minutes >= 60) "${minutes / 60} h ${"%02d".format(minutes % 60)} min" else "$minutes min"
+}
+
 @Composable
-private fun HeroPrimaryButton(text: String, icon: ImageVector, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun BoxScope.EmptyHome(loading: Boolean) {
+    Column(
+        modifier = Modifier.align(Alignment.Center),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        if (loading) {
+            CircularProgressIndicator(color = AccentLight, strokeWidth = 3.dp, modifier = Modifier.size(34.dp))
+            Spacer(Modifier.height(12.dp))
+            Text("Cargando tu contenido…", color = TextSecondary, fontSize = 12.sp)
+        } else {
+            Text("Aún no hay películas ni series", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(4.dp))
+            Text("Entra a En vivo, Películas o Series desde el menú de abajo.", color = TextSecondary, fontSize = 11.sp)
+        }
+    }
+}
+
+// ------------------------------------------------------------------ botones
+
+@Composable
+private fun PillButton(
+    text: String,
+    modifier: Modifier = Modifier,
+    primary: Boolean = false,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = if (primary) Icons.Filled.PlayArrow else null,
+    onClick: () -> Unit
+) {
     var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(if (focused) 1.06f else 1f, label = "heroScale")
-    val shape = RoundedCornerShape(10.dp)
+    val scale by animateFloatAsState(if (focused) 1.07f else 1f, label = "pill")
+    val shape = RoundedCornerShape(50)
     Row(
         modifier = modifier
             .onFocusChanged { focused = it.isFocused }
             .scale(scale)
-            .shadow(if (focused) 16.dp else 0.dp, shape, ambientColor = AccentColor, spotColor = AccentColor)
+            .shadow(if (primary || focused) 12.dp else 0.dp, shape, ambientColor = AccentColor, spotColor = AccentColor)
             .clip(shape)
-            .background(AccentBrush, shape)
-            .border(if (focused) 3.dp else 0.dp, if (focused) Color.White else Color.Transparent, shape)
+            .then(
+                when {
+                    primary || focused -> Modifier.background(PinkButton)
+                    else -> Modifier.background(Color(0x1AFFFFFF))
+                }
+            )
+            .border(
+                if (focused) 2.dp else 0.5.dp,
+                if (focused) Color.White else Color(0x2EFFFFFF),
+                shape
+            )
             .clickable(onClick = onClick)
-            .padding(start = 16.dp, end = 20.dp, top = 10.dp, bottom = 10.dp),
+            .height(30.dp)
+            .padding(start = if (icon != null) 13.dp else 16.dp, end = 17.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
-        Spacer(Modifier.width(8.dp))
-        Text(text, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-    }
-}
-
-@Composable
-private fun HeroButton(text: String, icon: ImageVector, onClick: () -> Unit) {
-    FocusCard(
-        onClick = onClick,
-        shape = RoundedCornerShape(10.dp),
-        scaleOnFocus = 1.05f,
-        background = Color(0x1FFFFFFF),
-        focusedBackground = Color(0x40FFFFFF)
-    ) {
-        Row(
-            modifier = Modifier.padding(start = 14.dp, end = 18.dp, top = 10.dp, bottom = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(icon, contentDescription = null, tint = TextPrimary, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(8.dp))
-            Text(text, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        if (icon != null) {
+            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+            Spacer(Modifier.width(6.dp))
         }
+        Text(
+            text = text,
+            color = Color.White,
+            fontSize = if (primary) 10.5.sp else 9.5.sp,
+            fontWeight = if (primary || focused) FontWeight.Bold else FontWeight.Medium
+        )
     }
 }
 
-@Composable
-private fun HeroIconButton(icon: ImageVector, description: String, onClick: () -> Unit) {
-    FocusCard(
-        onClick = onClick,
-        modifier = Modifier.size(42.dp),
-        shape = RoundedCornerShape(10.dp),
-        scaleOnFocus = 1.08f,
-        background = Color(0x1FFFFFFF),
-        focusedBackground = Color(0x40FFFFFF)
-    ) {
-        Box(Modifier.size(42.dp), contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = description, tint = TextPrimary, modifier = Modifier.size(22.dp))
-        }
-    }
-}
-
-// ------------------------------------------------------------------ filas
+private class DockItem(
+    val label: String,
+    val icon: @Composable (Color) -> Unit,
+    val home: Boolean = false,
+    val onClick: () -> Unit
+)
 
 @Composable
-private fun RowTitle(title: String, subtitle: String? = null) {
+private fun Dock(modifier: Modifier, homeRequester: FocusRequester, upTarget: FocusRequester, items: List<DockItem>) {
     Row(
-        modifier = Modifier.padding(start = 40.dp, top = 14.dp),
-        verticalAlignment = Alignment.Bottom
+        modifier = modifier
+            .clip(RoundedCornerShape(15.dp))
+            .background(Color(0x14FFFFFF))
+            .border(0.5.dp, Color(0x24FFFFFF), RoundedCornerShape(15.dp))
+            .padding(horizontal = 7.dp, vertical = 5.dp),
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
     ) {
-        Text(title, color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-        if (subtitle != null) {
-            Spacer(Modifier.width(10.dp))
-            Text(subtitle, color = TextTertiary, fontSize = 11.sp)
-        }
-    }
-}
-
-@Composable
-private fun ContinueRow(entries: List<ResumeEntry>, onPlay: (ResumeEntry) -> Unit) {
-    Column(Modifier.fillMaxWidth()) {
-        RowTitle("Continuar viendo", "Retoma donde te quedaste")
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 40.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(entries, key = { it.key }) { entry ->
-                FocusCard(
-                    onClick = { onPlay(entry) },
-                    modifier = Modifier.width(176.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    scaleOnFocus = 1.05f
-                ) {
-                    Column {
-                        Box(
-                            Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(16f / 9f)
-                        ) {
-                            PosterImage(url = entry.image, title = entry.title, modifier = Modifier.fillMaxSize())
-                            Text(
-                                text = "Continuar ${formatDuration(entry.positionMs / 1000)}",
-                                color = Color.White,
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier
-                                    .align(Alignment.BottomStart)
-                                    .padding(start = 6.dp, bottom = 8.dp)
-                                    .background(Color(0x99000000), RoundedCornerShape(4.dp))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                            Box(
-                                Modifier
-                                    .align(Alignment.BottomStart)
-                                    .fillMaxWidth()
-                                    .height(3.dp)
-                                    .background(Color(0x33FFFFFF))
-                            ) {
-                                Box(
-                                    Modifier
-                                        .fillMaxWidth(entry.fraction.coerceIn(0.02f, 1f))
-                                        .fillMaxHeight()
-                                        .background(AccentColor)
-                                )
-                            }
+        items.forEach { item ->
+            var focused by remember { mutableStateOf(false) }
+            val scale by animateFloatAsState(if (focused) 1.08f else 1f, label = "dock")
+            val shape = RoundedCornerShape(10.dp)
+            val tint = if (focused) Color.White else if (item.home) ShelfPink else Color(0xFFB9A2B5)
+            Column(
+                modifier = Modifier
+                    .then(if (item.home) Modifier.focusRequester(homeRequester) else Modifier)
+                    .focusProperties { up = upTarget }
+                    .onFocusChanged { focused = it.isFocused }
+                    .scale(scale)
+                    .shadow(if (focused) 10.dp else 0.dp, shape, ambientColor = AccentColor, spotColor = AccentColor)
+                    .clip(shape)
+                    .then(
+                        when {
+                            focused -> Modifier.background(Brush.linearGradient(listOf(Color(0xFFFF4FA3), AccentDeep)))
+                            item.home -> Modifier.background(AccentColor.copy(alpha = 0.16f))
+                            else -> Modifier
                         }
-                        Text(
-                            text = entry.title,
-                            color = TextPrimary,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PosterRow(title: String, tiles: List<Tile>) {
-    Column(Modifier.fillMaxWidth()) {
-        RowTitle(title)
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 40.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(tiles, key = { it.key }) { tile ->
-                PosterCard(
-                    title = tile.title,
-                    imageUrl = tile.image,
-                    rating10 = tile.rating10,
-                    favorite = false,
-                    onClick = tile.onClick,
-                    modifier = Modifier.width(96.dp)
+                    )
+                    .border(if (focused) 1.5.dp else 0.dp, if (focused) Color.White else Color.Transparent, shape)
+                    .clickable(onClick = item.onClick)
+                    .size(48.dp, 39.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                item.icon(tint)
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = item.label,
+                    color = tint,
+                    fontSize = 6.5.sp,
+                    fontWeight = if (focused || item.home) FontWeight.Bold else FontWeight.Medium,
+                    maxLines = 1
                 )
             }
         }
+    }
+}
+
+/** Destello de cuatro puntas de la marca. */
+@Composable
+private fun Sparkle(size: Dp) {
+    androidx.compose.foundation.Canvas(Modifier.size(size)) {
+        val w = this.size.width
+        val h = this.size.height
+        val path = androidx.compose.ui.graphics.Path().apply {
+            moveTo(w / 2, 0f)
+            lineTo(w * 0.61f, h * 0.39f)
+            lineTo(w, h / 2)
+            lineTo(w * 0.61f, h * 0.61f)
+            lineTo(w / 2, h)
+            lineTo(w * 0.39f, h * 0.61f)
+            lineTo(0f, h / 2)
+            lineTo(w * 0.39f, h * 0.39f)
+            close()
+        }
+        drawPath(path, ShelfPink)
     }
 }

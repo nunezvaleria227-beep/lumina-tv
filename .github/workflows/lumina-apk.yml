@@ -12,6 +12,8 @@ on:
   push:
     branches:
       - main
+      # Versión de prueba: se instala aparte ("Lumina TV prueba") y no llega a los clientes.
+      - diseno-nuevo
     paths-ignore:
       - "docs/**"
       - "art/**"
@@ -95,7 +97,11 @@ jobs:
       - name: Compilar APK release
         env:
           VERSION_OFFSET: "0"
+          PREVIEW: ${{ github.ref != 'refs/heads/main' && '1' || '' }}
         run: |
+          if [ "$PREVIEW" = "1" ]; then
+            sed -i 's|<string name="app_name">Lumina TV</string>|<string name="app_name">Lumina TV prueba</string>|' app/src/main/res/values/strings.xml
+          fi
           chmod +x gradlew
           set -o pipefail
           ./gradlew assembleRelease --console=plain --stacktrace 2>&1 | tee build.log || {
@@ -148,3 +154,19 @@ jobs:
           name: Lumina TV 1.0.${{ github.run_number }}
           body_path: release-notes.md
           files: LuminaTV.apk
+
+      - name: Publicar versión de prueba
+        if: github.ref == 'refs/heads/diseno-nuevo'
+        run: cp LuminaTV.apk LuminaTV-prueba.apk
+
+      - name: Subir versión de prueba
+        if: github.ref == 'refs/heads/diseno-nuevo'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: prueba-diseno
+          name: Lumina TV - versión de prueba (diseño nuevo)
+          prerelease: true
+          make_latest: false
+          target_commitish: ${{ github.sha }}
+          body: "Versión de prueba del diseño nuevo. Se instala aparte como \"Lumina TV prueba\"; no reemplaza a la app de los clientes."
+          files: LuminaTV-prueba.apk

@@ -52,15 +52,14 @@ val GlassBorder = Color(0x1FFFFFFF)
 /** Degradado rosa de la marca (botones principales, insignias). */
 val AccentBrush = Brush.horizontalGradient(listOf(AccentLight, AccentColor, AccentDeep))
 
-/** Letra de toda la app: Inter (la misma familia que usan muchas apps de streaming). */
+/** Letra de toda la app: Poppins (la de la marca Lumina). */
 val LuminaFont = FontFamily(
-    Font(R.font.inter_regular, FontWeight.Normal),
-    Font(R.font.inter_medium, FontWeight.Medium),
-    Font(R.font.inter_semibold, FontWeight.SemiBold),
-    Font(R.font.inter_bold, FontWeight.Bold),
-    Font(R.font.inter_extrabold, FontWeight.ExtraBold),
-    // "Black" se dibuja con ExtraBold: más limpio en pantalla grande
-    Font(R.font.inter_extrabold, FontWeight.Black)
+    Font(R.font.poppins_regular, FontWeight.Normal),
+    Font(R.font.poppins_medium, FontWeight.Medium),
+    Font(R.font.poppins_bold, FontWeight.SemiBold),
+    Font(R.font.poppins_bold, FontWeight.Bold),
+    Font(R.font.poppins_bold, FontWeight.ExtraBold),
+    Font(R.font.poppins_bold, FontWeight.Black)
 )
 
 private fun TextStyle.lumina(weight: FontWeight? = null, tracking: Float? = null) = copy(

@@ -107,6 +107,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     /** Último botón enfocado del inicio, para volver a él al regresar. */
     var homeFocus: Int = 0
 
+    /** Fila y portada del carrusel del inicio, para volver al mismo lugar al regresar de una ficha. */
+    var homeShelfKey by mutableStateOf<String?>(null)
+    var homeIndex by mutableStateOf(0)
+
     // ------------------------------------------------------- actualizaciones de la app
 
     var update by mutableStateOf<UpdateState>(UpdateState.Idle)

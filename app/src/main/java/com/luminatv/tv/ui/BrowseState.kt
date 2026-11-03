@@ -89,6 +89,12 @@ class BrowseState<T : Item>(
         if (cat == null || check == null) emptySet() else cat.categories.filter(check).map { it.id }.toSet()
     }
 
+    /** Los favoritos de la sección (para "Mi lista" del inicio). */
+    val favoriteList: List<T> by derivedStateOf {
+        val cat = catalog
+        if (cat == null) emptyList() else favoriteItems(cat)
+    }
+
     /** Todo lo de la sección sin lo escondido (para el buscador, la guía y los conteos). */
     val visibleItems: List<T> by derivedStateOf {
         val cat = catalog
