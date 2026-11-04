@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Buscar: teclado en pantalla a la izquierda; a la derecha filtros (Todo, Películas, Series, Canales) y resultados. -->
+<component name="SearchScreen" extends="Group">
+  <interface>
+    <field id="event" type="assocarray" alwaysNotify="true" />
+    <function name="focusScreen" />
+    <function name="onClose" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/screens/SearchScreen.brs" />
+  <script type="text/brightscript" uri="pkg:/components/common.brs" />
+  <children>
+    <Poster uri="pkg:/images/bg_home.jpg" width="1280" height="720" />
+    <Poster uri="pkg:/images/logo.png" translation="[48,26]" width="120" height="27" />
+    <Label id="clock" translation="[932,18]" width="300" height="28" horizAlign="right" color="0xFBF3F9FF">
+      <Font role="font" uri="pkg:/fonts/Poppins-Bold.ttf" size="20" />
+    </Label>
+    <Label id="dateLabel" translation="[832,45]" width="400" height="18" horizAlign="right" color="0xB9A2B5FF">
+      <Font role="font" uri="pkg:/fonts/Poppins-Medium.ttf" size="11" />
+    </Label>
+    <Poster uri="pkg:/images/ic_search.png" translation="[48,73]" width="24" height="24" />
+    <Label translation="[82,64]" width="400" height="40" vertAlign="center" color="0xFBF3F9FF" text="Buscar">
+      <Font role="font" uri="pkg:/fonts/Poppins-Bold.ttf" size="25" />
+    </Label>
+
+    <MiniKeyboard id="kb" translation="[40,108]" />
+    <PillRow id="searchBtn" translation="[48,560]" />
+
+    <PillRow id="filters" translation="[470,112]" small="true" primaryCount="0" selectedIndex="0" />
+    <MarkupGrid id="grid" translation="[470,158]" itemComponentName="PosterCard" itemSize="[128,220]"
+      itemSpacing="[16,12]" numColumns="5" numRows="2" drawFocusFeedback="false" visible="false" />
+    <Label id="status" translation="[470,250]" width="700" height="120" horizAlign="center" wrap="true" color="0xCDB8C9FF">
+      <Font role="font" uri="pkg:/fonts/Poppins-Medium.ttf" size="16" />
+    </Label>
+    <LuminaDock id="dock" translation="[386,642]" active="search" />
+  </children>
+</component>

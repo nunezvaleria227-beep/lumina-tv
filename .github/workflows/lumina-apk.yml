@@ -18,6 +18,7 @@ on:
       - "docs/**"
       - "art/**"
       - "**.md"
+      - "roku/**"
   workflow_dispatch:
   schedule:
     # Cada 3 días: solo "toca" la llave de respaldo para que GitHub no la borre por falta de uso.

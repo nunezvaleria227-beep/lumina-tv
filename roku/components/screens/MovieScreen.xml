@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Ficha de película: cartel a la izquierda, título grande, datos, sinopsis y botones en píldora. -->
+<component name="MovieScreen" extends="Group">
+  <interface>
+    <field id="item" type="assocarray" onChange="onItem" />
+    <field id="event" type="assocarray" alwaysNotify="true" />
+    <function name="focusScreen" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/screens/MovieScreen.brs" />
+  <script type="text/brightscript" uri="pkg:/components/common.brs" />
+  <children>
+    <Rectangle id="base" width="1280" height="720" color="0x0A0310FF" />
+    <Poster uri="pkg:/images/bg_movies.jpg" width="1280" height="720" />
+    <Poster id="backdrop" width="1280" height="720" loadDisplayMode="scaleToZoom" loadWidth="1280" loadHeight="720" />
+    <Poster uri="pkg:/images/detail_fade.png" width="1280" height="720" />
+    <Poster uri="pkg:/images/logo.png" translation="[48,26]" width="120" height="27" />
+
+    <Poster uri="pkg:/images/poster_glow.9.png" translation="[28,72]" width="240" height="340" />
+    <Poster uri="pkg:/images/card_bg.9.png" translation="[48,92]" width="200" height="300" />
+    <MaskGroup maskUri="pkg:/images/card_mask.png" maskSize="[200,300]" translation="[48,92]">
+      <Poster id="cover" width="200" height="300" loadDisplayMode="scaleToZoom" loadWidth="300" loadHeight="450" />
+    </MaskGroup>
+
+    <Poster uri="pkg:/images/star4.png" translation="[284,98]" width="11" height="11" />
+    <Label id="kicker" translation="[300,92]" width="700" height="22" color="0xFF9ED0FF" text="PELÍCULA">
+      <Font role="font" uri="pkg:/fonts/Poppins-Bold.ttf" size="12" />
+    </Label>
+    <Label id="name" translation="[282,114]" width="920" wrap="true" maxLines="2" lineSpacing="-8" color="0xFBF3F9FF">
+      <Font role="font" uri="pkg:/fonts/Poppins-Bold.ttf" size="38" />
+    </Label>
+    <Label id="meta" translation="[282,212]" width="920" height="24" color="0xCDB8C9FF">
+      <Font role="font" uri="pkg:/fonts/Poppins-Medium.ttf" size="15" />
+    </Label>
+    <Label id="plot" translation="[282,244]" width="780" wrap="true" maxLines="4" lineSpacing="1" color="0xD9C8D6FF">
+      <Font role="font" uri="pkg:/fonts/Poppins-Regular.ttf" size="15" />
+    </Label>
+    <Label id="extra" translation="[282,344]" width="780" wrap="true" maxLines="2" color="0x9F8A9CFF">
+      <Font role="font" uri="pkg:/fonts/Poppins-Regular.ttf" size="12" />
+    </Label>
+    <PillRow id="actions" translation="[282,396]" />
+    <Rectangle id="progBg" translation="[282,456]" width="220" height="4" color="0xFFFFFF33" visible="false" />
+    <Rectangle id="progBar" translation="[282,456]" width="0" height="4" color="0xF2268AFF" visible="false" />
+    <Label id="progLabel" translation="[514,448]" width="400" height="20" color="0x9F8A9CFF" visible="false">
+      <Font role="font" uri="pkg:/fonts/Poppins-Medium.ttf" size="12" />
+    </Label>
+    <Label id="status" translation="[282,212]" width="880" height="24" color="0xCDB8C9FF">
+      <Font role="font" uri="pkg:/fonts/Poppins-Medium.ttf" size="14" />
+    </Label>
+    <Label id="idTag" translation="[48,684]" width="820" height="20" color="0x5E4A62FF">
+      <Font role="font" uri="pkg:/fonts/Poppins-Regular.ttf" size="11" />
+    </Label>
+  </children>
+</component>

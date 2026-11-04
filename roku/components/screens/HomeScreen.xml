@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Inicio de Lumina TV: carrusel de portadas al centro, el fondo toma los colores de la portada elegida,
+     abajo el título con sus botones y la barra de menú flotante. -->
+<component name="HomeScreen" extends="Group">
+  <interface>
+    <field id="event" type="assocarray" alwaysNotify="true" />
+    <field id="goShelf" type="string" alwaysNotify="true" onChange="onGoShelf" />
+    <function name="focusScreen" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/screens/HomeScreen.brs" />
+  <script type="text/brightscript" uri="pkg:/components/common.brs" />
+  <children>
+    <Rectangle id="base" width="1280" height="720" color="0x0A0310FF" />
+    <Poster id="bgArt" uri="pkg:/images/bg_home.jpg" width="1280" height="720" opacity="0.8" />
+    <Poster id="ambA" width="1280" height="720" loadDisplayMode="scaleToZoom" loadWidth="64" loadHeight="36" opacity="0" />
+    <Poster id="ambB" width="1280" height="720" loadDisplayMode="scaleToZoom" loadWidth="64" loadHeight="36" opacity="0" />
+    <Poster uri="pkg:/images/vignette.png" width="1280" height="720" />
+    <Poster uri="pkg:/images/floor.png" translation="[0,420]" width="1280" height="300" />
+
+    <Poster uri="pkg:/images/logo.png" translation="[48,30]" width="132" height="30" />
+    <Label id="clock" translation="[932,22]" width="300" height="30" horizAlign="right" color="0xFBF3F9FF">
+      <Font role="font" uri="pkg:/fonts/Poppins-Bold.ttf" size="21" />
+    </Label>
+    <Label id="dateLabel" translation="[832,50]" width="400" height="18" horizAlign="right" color="0xB9A2B5FF">
+      <Font role="font" uri="pkg:/fonts/Poppins-Medium.ttf" size="11" />
+    </Label>
+
+    <!-- nombre de la fila (▲ para cambiarla) -->
+    <Label id="headHint" translation="[240,68]" width="800" height="18" horizAlign="center" color="0x8E7A8BFF">
+      <Font role="font" uri="pkg:/fonts/Poppins-Medium.ttf" size="11" />
+    </Label>
+    <Group id="head" translation="[0,88]">
+      <Poster id="headChip" uri="pkg:/images/chip_head.9.png" width="200" height="30" visible="false" />
+      <Poster id="headStar" uri="pkg:/images/star4.png" translation="[0,8]" width="14" height="14" />
+      <Label id="headTitle" translation="[20,0]" height="30" vertAlign="center" color="0xFF9ED0FF">
+        <Font role="font" uri="pkg:/fonts/Poppins-Bold.ttf" size="15" />
+      </Label>
+    </Group>
+
+    <!-- carrusel: el centro de la portada principal está en (640, 283) -->
+    <Group id="stage" translation="[640,283]" />
+    <Animation id="anim" duration="0.28" easeFunction="outQuad" repeat="false" />
+    <Animation id="fade" duration="0.6" easeFunction="linear" repeat="false">
+      <FloatFieldInterpolator id="fadeIn" key="[0.0, 1.0]" keyValue="[0.0, 0.62]" />
+      <FloatFieldInterpolator id="fadeOut" key="[0.0, 1.0]" keyValue="[0.62, 0.0]" />
+    </Animation>
+
+    <Label id="status" translation="[240,250]" width="800" height="70" horizAlign="center" wrap="true" color="0xCDB8C9FF">
+      <Font role="font" uri="pkg:/fonts/Poppins-Medium.ttf" size="17" />
+    </Label>
+
+    <!-- título, datos y botones de lo enfocado -->
+    <Label id="title" translation="[140,452]" width="1000" height="46" horizAlign="center" color="0xFBF3F9FF">
+      <Font role="font" uri="pkg:/fonts/Poppins-Bold.ttf" size="34" />
+    </Label>
+    <Label id="meta" translation="[140,498]" width="1000" height="22" horizAlign="center" color="0xCDB8C9FF">
+      <Font role="font" uri="pkg:/fonts/Poppins-Medium.ttf" size="14" />
+    </Label>
+    <PillRow id="btns" translation="[640,532]" />
+
+    <!-- filas (abajo a la izquierda) y ayuda (abajo a la derecha) -->
+    <Group id="shelfList" translation="[48,600]" />
+    <Label id="hint" translation="[900,664]" width="332" height="20" horizAlign="right" color="0x8E7A8BFF" text="◀ ▶  recorrer   ·   ▲  cambiar fila">
+      <Font role="font" uri="pkg:/fonts/Poppins-Medium.ttf" size="11" />
+    </Label>
+
+    <LuminaDock id="dock" translation="[386,642]" active="home" />
+
+    <Timer id="infoTimer" duration="0.35" repeat="false" />
+    <Timer id="clockTimer" duration="15" repeat="true" />
+  </children>
+</component>

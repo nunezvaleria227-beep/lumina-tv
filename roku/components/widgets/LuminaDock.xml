@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Barra de menú flotante de Lumina TV (abajo al centro): Buscar, Inicio, En vivo, Películas, Series, Mi lista y Ajustes. -->
+<component name="LuminaDock" extends="Group">
+  <interface>
+    <field id="active" type="string" onChange="onActive" />
+    <field id="selected" type="string" alwaysNotify="true" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/widgets/LuminaDock.brs" />
+  <children>
+    <Poster id="bg" uri="pkg:/images/dock_bg.9.png" width="508" height="66" />
+    <Group id="items" translation="[9,7]" />
+  </children>
+</component>

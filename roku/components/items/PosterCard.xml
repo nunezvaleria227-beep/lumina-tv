@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Película o serie en la cuadrícula: cartel con esquinas redondas y el nombre debajo. -->
+<component name="PosterCard" extends="Group">
+  <interface>
+    <field id="itemContent" type="node" onChange="onContent" />
+    <field id="focusPercent" type="float" onChange="paint" />
+    <field id="gridHasFocus" type="boolean" onChange="paint" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/items/PosterCard.brs" />
+  <children>
+    <Poster id="bg" uri="pkg:/images/card_bg.9.png" width="128" height="192" />
+    <Label id="initial" width="128" height="192" horizAlign="center" vertAlign="center" color="0x5E4A62FF">
+      <Font role="font" uri="pkg:/fonts/Poppins-Bold.ttf" size="40" />
+    </Label>
+    <MaskGroup id="mask" maskUri="pkg:/images/card_mask.png" maskSize="[128,192]">
+      <Poster id="art" width="128" height="192" loadDisplayMode="scaleToZoom" loadWidth="256" loadHeight="384" />
+    </MaskGroup>
+    <Poster id="ring" uri="pkg:/images/ring_white.9.png" translation="[-4,-4]" width="136" height="200" visible="false" />
+    <Poster id="favBox" uri="pkg:/images/badge_dark.9.png" translation="[100,6]" width="22" height="22" visible="false" />
+    <Poster id="fav" uri="pkg:/images/star4.png" translation="[104,10]" width="14" height="14" visible="false" />
+    <Label id="title" translation="[2,198]" width="124" height="20" color="0xCDB8C9FF">
+      <Font role="font" uri="pkg:/fonts/Poppins-Medium.ttf" size="12" />
+    </Label>
+  </children>
+</component>

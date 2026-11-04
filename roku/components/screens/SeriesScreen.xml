@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Ficha de serie: título grande, datos y sinopsis, botones, temporadas como pastillas y episodios en tarjetas. -->
+<component name="SeriesScreen" extends="Group">
+  <interface>
+    <field id="item" type="assocarray" onChange="onItem" />
+    <field id="event" type="assocarray" alwaysNotify="true" />
+    <function name="focusScreen" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/screens/SeriesScreen.brs" />
+  <script type="text/brightscript" uri="pkg:/components/common.brs" />
+  <children>
+    <Rectangle id="base" width="1280" height="720" color="0x0A0310FF" />
+    <Poster uri="pkg:/images/bg_series.jpg" width="1280" height="720" />
+    <Poster id="backdrop" width="1280" height="720" loadDisplayMode="scaleToZoom" loadWidth="1280" loadHeight="720" />
+    <Poster uri="pkg:/images/detail_fade.png" width="1280" height="720" />
+    <Poster uri="pkg:/images/logo.png" translation="[48,26]" width="120" height="27" />
+    <Poster id="cover" visible="false" width="1" height="1" />
+
+    <Poster uri="pkg:/images/star4.png" translation="[50,84]" width="11" height="11" />
+    <Label id="kicker" translation="[66,78]" width="700" height="22" color="0xFF9ED0FF" text="SERIE">
+      <Font role="font" uri="pkg:/fonts/Poppins-Bold.ttf" size="12" />
+    </Label>
+    <Label id="name" translation="[48,98]" width="1100" height="54" color="0xFBF3F9FF">
+      <Font role="font" uri="pkg:/fonts/Poppins-Bold.ttf" size="38" />
+    </Label>
+    <Label id="meta" translation="[48,154]" width="1000" height="22" color="0xCDB8C9FF">
+      <Font role="font" uri="pkg:/fonts/Poppins-Medium.ttf" size="14" />
+    </Label>
+    <Label id="plot" translation="[48,182]" width="760" height="46" wrap="true" maxLines="2" color="0xD9C8D6FF">
+      <Font role="font" uri="pkg:/fonts/Poppins-Regular.ttf" size="15" />
+    </Label>
+    <PillRow id="btns" translation="[48,238]" />
+    <PillRow id="seasonList" translation="[48,300]" small="true" primaryCount="0" />
+    <RowList id="episodeList" translation="[48,348]" itemComponentName="EpisodeCard" numRows="1" itemSize="[1232,172]"
+      rowItemSize="[[212,170]]" rowItemSpacing="[[16,0]]" rowHeights="[172]" showRowLabel="[false]"
+      drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" />
+    <Label id="status" translation="[48,300]" width="1100" height="80" wrap="true" color="0xCDB8C9FF">
+      <Font role="font" uri="pkg:/fonts/Poppins-Medium.ttf" size="16" />
+    </Label>
+    <Label id="idTag" translation="[48,684]" width="600" height="20" color="0x5E4A62FF">
+      <Font role="font" uri="pkg:/fonts/Poppins-Regular.ttf" size="11" />
+    </Label>
+    <Label id="hint" translation="[632,684]" width="600" height="20" horizAlign="right" color="0x8E7A8BFF" text="OK: ver episodio   ·   Play/Pausa: Mi lista">
+      <Font role="font" uri="pkg:/fonts/Poppins-Medium.ttf" size="11" />
+    </Label>
+  </children>
+</component>
