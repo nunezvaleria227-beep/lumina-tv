@@ -7,13 +7,13 @@ object Config {
      * - Si la rellenas, la app solo pedirá usuario y contraseña.
      * - Si la dejas vacía, la pantalla de inicio de sesión también pedirá la URL.
      */
-    const val PORTAL_URL: String = "http://ultrapremiertv.vip"
+    const val PORTAL_URL: String = "http://facstplaytv.vip"
 
     /**
      * Servidores de respaldo. Si el principal no responde (está caído, el dominio dejó de funcionar
      * o rechaza la conexión), la app prueba estos en orden con el mismo usuario y contraseña.
      */
-    val BACKUP_URLS: List<String> = listOf("http://gazyd.club:8880")
+    val BACKUP_URLS: List<String> = listOf("http://ultrapremiertv.vip", "http://gazyd.club:8880")
 
     /** Identificación propia de la app (User-Agent). */
     const val DEFAULT_USER_AGENT: String = "LuminaTV/1.0 (Linux; Android)"
