@@ -169,6 +169,7 @@ fun LiveScreen(vm: AppViewModel, state: BrowseState<LiveChannel>, title: String,
     LaunchedEffect(state.catalog) {
         if (state.catalog != null) {
             withFrameNanos { }
+            com.luminatv.tv.QaProbe.ready(title, "${state.items.size} canales, ${state.rows.size} filas")
             withFrameNanos { }
             firstRow.tryRequestFocus()
         }

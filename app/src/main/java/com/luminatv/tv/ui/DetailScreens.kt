@@ -52,6 +52,7 @@ import coil.compose.AsyncImage
 import com.luminatv.tv.data.Episode
 import com.luminatv.tv.data.Kind
 import com.luminatv.tv.data.Movie
+import com.luminatv.tv.data.parseRating
 import com.luminatv.tv.data.MovieInfo
 import com.luminatv.tv.data.ResumeEntry
 import com.luminatv.tv.data.SeriesDetail
@@ -125,7 +126,7 @@ fun MovieDetailScreen(vm: AppViewModel, movie: Movie) {
         details?.releaseDate?.take(4),
         details?.duration,
         details?.genre,
-        movie.rating?.takeIf { (it.toFloatOrNull() ?: 0f) > 0f }?.let { "★ $it" }
+        movie.rating?.takeIf { parseRating(it) > 0f }?.let { "★ $it" }
     ).joinToString("   •   ")
 
     AppBackground {
@@ -266,7 +267,7 @@ fun SeriesDetailScreen(vm: AppViewModel, show: SeriesItem) {
     val meta = listOfNotNull(
         detail?.releaseDate?.take(4),
         detail?.genre,
-        show.rating?.takeIf { (it.toFloatOrNull() ?: 0f) > 0f }?.let { "★ $it" }
+        show.rating?.takeIf { parseRating(it) > 0f }?.let { "★ $it" }
     ).joinToString("  •  ")
 
     AppBackground {
