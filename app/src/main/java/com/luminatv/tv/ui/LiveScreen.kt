@@ -82,6 +82,14 @@ class LivePreview(private val context: Context) {
 
     private val listener = object : Player.Listener {
         override fun onPlayerError(error: PlaybackException) {
+            // El audio no se pudo leer con el decodificador del aparato: se reintenta leyéndolo con FFmpeg.
+            if (com.luminatv.tv.AudioSupport.switchToSoftware(error)) {
+                player?.let {
+                    it.seekToDefaultPosition()
+                    it.prepare()
+                }
+                return
+            }
             failed = true
             buffering = false
         }
@@ -99,7 +107,7 @@ class LivePreview(private val context: Context) {
             .setAllowCrossProtocolRedirects(true)
             .setConnectTimeoutMs(15_000)
             .setReadTimeoutMs(20_000)
-        val exo = ExoPlayer.Builder(context)
+        val exo = ExoPlayer.Builder(context, com.luminatv.tv.AudioSupport.renderersFactory(context))
             .setLoadControl(com.luminatv.tv.FastStart.loadControl())
             .setMediaSourceFactory(DefaultMediaSourceFactory(http))
             .build()

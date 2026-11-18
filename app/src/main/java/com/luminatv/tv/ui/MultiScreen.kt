@@ -73,7 +73,7 @@ class MultiPlayerHost(private val context: Context) {
             .setAllowCrossProtocolRedirects(true)
             .setConnectTimeoutMs(15_000)
             .setReadTimeoutMs(20_000)
-        val exo = ExoPlayer.Builder(context)
+        val exo = ExoPlayer.Builder(context, com.luminatv.tv.AudioSupport.renderersFactory(context))
             .setLoadControl(com.luminatv.tv.FastStart.loadControl())
             .setMediaSourceFactory(DefaultMediaSourceFactory(http))
             .build()
