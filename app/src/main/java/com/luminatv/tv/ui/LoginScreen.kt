@@ -160,7 +160,7 @@ fun LoginScreen(vm: AppViewModel) {
                         keyboardActions = KeyboardActions(
                             onNext = { focusManager.moveFocus(FocusDirection.Down) }
                         ),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth().remoteTextInput(vm.server, { vm.server = it }, "URL del servidor")
                     )
                 }
 
@@ -177,7 +177,7 @@ fun LoginScreen(vm: AppViewModel) {
                     keyboardActions = KeyboardActions(
                         onNext = { focusManager.moveFocus(FocusDirection.Down) }
                     ),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().remoteTextInput(vm.username, { vm.username = it }, "Usuario")
                 )
 
                 OutlinedTextField(
@@ -209,7 +209,7 @@ fun LoginScreen(vm: AppViewModel) {
                             vm.submitLogin()
                         }
                     ),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().remoteTextInput(vm.password, { vm.password = it }, "Contraseña", secret = true)
                 )
 
                 val error = state.error
