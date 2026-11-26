@@ -177,7 +177,11 @@ fun LoginScreen(vm: AppViewModel) {
                     keyboardActions = KeyboardActions(
                         onNext = { focusManager.moveFocus(FocusDirection.Down) }
                     ),
-                    modifier = Modifier.fillMaxWidth().remoteTextInput(vm.username, { vm.username = it }, "Usuario")
+                    modifier = Modifier.fillMaxWidth().remoteTextInput(
+                        vm.username, { vm.username = it }, "Usuario",
+                        clearFirst = vm.credentialsPrefilled,
+                        onClearFirst = { vm.startEditingCredentials(usernameField = true) }
+                    )
                 )
 
                 OutlinedTextField(
@@ -209,7 +213,11 @@ fun LoginScreen(vm: AppViewModel) {
                             vm.submitLogin()
                         }
                     ),
-                    modifier = Modifier.fillMaxWidth().remoteTextInput(vm.password, { vm.password = it }, "Contraseña", secret = true)
+                    modifier = Modifier.fillMaxWidth().remoteTextInput(
+                        vm.password, { vm.password = it }, "Contraseña", secret = true,
+                        clearFirst = vm.credentialsPrefilled,
+                        onClearFirst = { vm.startEditingCredentials(usernameField = false) }
+                    )
                 )
 
                 val error = state.error
@@ -229,6 +237,14 @@ fun LoginScreen(vm: AppViewModel) {
                     enabled = !state.loading,
                     modifier = Modifier.fillMaxWidth()
                 )
+                if (state.loading) {
+                    // Si tarda, el cliente no se queda atorado: puede cancelar y escribir otro usuario.
+                    TvButton(
+                        text = "Cancelar",
+                        onClick = { vm.cancelLogin() },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
                 if (!needsServer) {
                     Text(
                         text = "✓  El servidor ya viene configurado: solo necesitas tu usuario y contraseña.",

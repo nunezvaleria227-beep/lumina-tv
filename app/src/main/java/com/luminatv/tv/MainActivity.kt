@@ -60,6 +60,15 @@ class MainActivity : ComponentActivity() {
         return super.dispatchGenericMotionEvent(event)
     }
 
+    override fun onResume() {
+        super.onResume()
+        // El reproductor detectó que la cuenta se acabó (por ejemplo, la demostración): a escribir el usuario nuevo.
+        com.luminatv.tv.data.AccountWatch.endedMessage?.let { message ->
+            com.luminatv.tv.data.AccountWatch.endedMessage = null
+            viewModel.endSession(message)
+        }
+    }
+
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         if (Config.QA_BUILD) qaOpen(intent)
